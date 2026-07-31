@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-31",
+  "note": "Bu dosya MotorKarne uygulamasının 'Toplam Sahip Olma Maliyeti' hesaplayıcısı için kullanılır. Yakıt fiyatlarını ayda bir, MTV dilimlerini yılda bir güncellemeniz önerilir. Fiyatlar TL cinsindendir.",
+  "fuelPrices": {
+    "benzin": 66,
+    "dizel": 75,
+    "lpg": 32,
+    "elektrikKwh": 2.8
+  },
+  "mtvBrackets": {
+    "note": "2026 yılı 1-3 yaş binek otomobil MTV dilimleri (I sayılı tarife, yaklaşık).",
+    "upTo1_3": 6903,
+    "upTo1_6": 12028,
+    "upTo1_8": 21252,
+    "upTo2_0": 32000,
+    "above2_0": 55000,
+    "elektrikli": 7000
+  },
+  "maintenanceBase": {
+    "note": "Yıllık ortalama bakım tahmini için taban tutar (TL), yakıt tipine göre. Gerçek servis fiyatlarına göre değişir.",
+    "benzin": 9000,
+    "dizel": 12000,
+    "hibrit": 8000,
+    "elektrik": 5000,
+    "lpg": 9500
+  }
+}
