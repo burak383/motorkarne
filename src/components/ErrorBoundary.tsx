@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { AlertTriangle } from 'lucide-react-native';
 
 interface Props {
@@ -26,8 +27,11 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: unknown) {
-    // Gerçek bir uygulamada burada Sentry/Crashlytics gibi bir hata izleme
-    // servisine bildirim gönderilir.
+    // TODO(kapalı test sonrası): Şu an yakalanan hatalar sadece cihaz konsoluna
+    // yazılıyor — kapalı test kullanıcılarından gelen çökmeleri görmenin bir yolu yok.
+    // Kurulumu `npx @sentry/wizard@latest -i reactNative` ile 2 dakikada yapabilirsin
+    // (bkz. README.md "Crash Raporlama (Sentry)" bölümü); wizard App.tsx'e Sentry.init'i
+    // ve buraya `Sentry.captureException(error)` çağrısını otomatik ekler.
     console.error('MotorKarne - yakalanmamış hata:', error);
   }
 

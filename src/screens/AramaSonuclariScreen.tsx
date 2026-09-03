@@ -1,7 +1,8 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, NativeSyntheticEvent, NativeScrollEvent,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -11,7 +12,7 @@ import {
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { searchVehicles } from '../data/catalog';
+import { useVehicles } from '../state/VehicleContext';
 import { useCatalog } from '../state/CatalogContext';
 import { getRiskInfo } from '../utils/risk';
 
@@ -20,6 +21,7 @@ type Nav = NativeStackNavigationProp<any>;
 const filterTabs = ['Tüm sonuçlar', 'Skor 8+', 'Otomatik', 'Dizel', 'Benzin'];
 
 export default function AramaSonuclariScreen() {
+  const { searchVehicles } = useVehicles();
   const nav = useNavigation<Nav>();
   const route = useRoute();
   const { themeColors: colors } = useTheme();
@@ -287,7 +289,9 @@ const getStyles = (colors: any) => StyleSheet.create({
   sectionMeta: { fontSize: 12, color: colors.mutedForeground },
   motorList: { borderRadius: radius, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, overflow: 'hidden' },
   motorCard: { paddingHorizontal: 16, paddingVertical: 16 },
-  motorCardBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  // Motor kayıtlarını birbirinden daha belirgin ayırmak için standart 1px yerine
+  // biraz daha kalın (2px) bir alt çizgi kullanılıyor.
+  motorCardBorder: { borderBottomWidth: 2, borderBottomColor: colors.border },
   motorIcon: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   motorName: { fontFamily: fonts.heading.bold, fontSize: 14, color: colors.foreground },
   motorBrands: { fontSize: 12, color: colors.mutedForeground, marginTop: 4 },
@@ -299,7 +303,9 @@ const getStyles = (colors: any) => StyleSheet.create({
   sep: { width: 1, height: 12, backgroundColor: colors.border },
   noteBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
   noteText: { fontSize: 12, color: colors.foreground, flex: 1, lineHeight: 18 },
-  vehicleCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: radius, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  // Araç kartları da (motor kartlarıyla tutarlı olacak şekilde) biraz daha
+  // kalın bir çerçeveyle diğer kartlardan ayrılıyor.
+  vehicleCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: radius, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.card },
   vehicleScoreCircle: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
   vehicleScore: { fontFamily: fonts.heading.bold, fontSize: 14, color: colors.foreground },
   vehicleName: { fontFamily: fonts.heading.bold, fontSize: 14, color: colors.foreground },

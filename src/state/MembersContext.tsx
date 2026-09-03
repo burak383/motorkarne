@@ -8,13 +8,34 @@ export interface Member {
   phone?: string;
   // NOT for production use: bu demo/mock bir üyelik akışıdır, gerçek bir backend'e
   // bağlı değildir. Şifreler düz metin olarak yalnızca cihaz üzerinde tutulur.
+  // Google/Facebook ile giriş yapan üyelerde password boş string olur (kullanılmaz).
   password: string;
   createdAt: string;
   avatarUri?: string;
+  // Google/Facebook ile mi yoksa e-posta/şifre ile mi kayıt olduğunu belirtir.
+  provider?: 'email' | 'google' | 'facebook';
+  providerId?: string;
   // Yönetici Paneli'ne erişim yetkisi. Yeni kayıt olan üyeler asla admin
   // olarak işaretlenmez; bu yalnızca aşağıdaki varsayılan hesapla veya
   // ileride eklenecek gerçek bir yetkilendirme akışıyla verilir.
   isAdmin?: boolean;
+  // Kullanıcı "Reklamları Kaldır" satın alımını (69,90 TL, tek seferlik) yaptı mı.
+  // NOT: Bu bayrak yalnızca cihazda tutulur (gerçek bir backend'e senkronize
+  // edilmez); kullanıcı uygulamayı silip yeniden kurarsa ya da başka bir
+  // cihazda giriş yaparsa "Satın Alımları Geri Yükle" (Restore Purchases)
+  // akışıyla mağazadan (Google Play) tekrar doğrulanması gerekir.
+  hasRemovedAds?: boolean; // ESKİ ALAN — geriye dönük uyumluluk için duruyor, yeni kodda kullanılmıyor
+  // Aylık "Reklamsız Deneyim" aboneliğinin ne zamana kadar aktif olduğu (Unix ms).
+  // Abonelik yenilenmezse bu tarih geçince reklamlar otomatik geri döner.
+  adsRemovedUntil?: number;
+}
+
+export interface SocialLoginInput {
+  provider: 'google';
+  providerId: string;
+  email: string;
+  fullName: string;
+  avatarUri?: string;
 }
 
 export interface RegisterInput {
@@ -34,9 +55,12 @@ interface MembersContextType {
   currentUser: Member | null;
   registerMember: (input: RegisterInput) => AuthResult;
   login: (email: string, password: string) => AuthResult;
+  loginWithProvider: (input: SocialLoginInput) => AuthResult;
   logout: () => void;
   deleteAccount: () => void;
   updateCurrentUser: (updates: { fullName?: string; email?: string; phone?: string; avatarUri?: string }) => AuthResult;
+  setAdsRemovedUntil: (until: number | null) => void;
+  changePassword: (currentPassword: string, newPassword: string) => AuthResult;
   resetPassword: (email: string, newPassword: string) => AuthResult;
   isEmailTaken: (email: string, excludeId?: string) => boolean;
 }
@@ -47,19 +71,34 @@ const SESSION_KEY = 'motorkarne_session';
 // Demo/mock ortam için varsayılan yönetici hesabı. Gerçek bir uygulamada bu
 // rol atamasının bir backend tarafından, güvenli bir şekilde yönetilmesi
 // gerekir — burada yalnızca Admin Paneli'ni tamamen erişimsiz bırakmamak
-// için sabit bir demo hesabı tanımlanıyor.
+// için bir demo hesabı tanımlanıyor.
+//
+// GÜVENLİK NOTU: Şifre artık kodda SABİT DEĞİL — EXPO_PUBLIC_ADMIN_PASSWORD ortam
+// değişkeninden okunuyor (bkz. .env.example). Bu değişken tanımlı değilse (örn. Play
+// Store'a giden genel yayın build'inde) admin hesabı HİÇ oluşturulmaz; yani hiç kimse
+// (decompile edilmiş bir APK'dan sabit "admin123" şifresini bulup) admin girişi
+// yapamaz. Kendi cihazında/geliştirme build'inde admin paneline erişmek istiyorsan
+// `.env` dosyana kendi belirlediğin bir şifreyi yaz.
+const ADMIN_PASSWORD = process.env.EXPO_PUBLIC_ADMIN_PASSWORD ?? '';
+
 const DEFAULT_ADMIN: Member = {
   id: 'admin-default',
   fullName: 'Yönetici',
   email: 'admin@motorkarne.com',
-  password: 'admin123',
+  password: ADMIN_PASSWORD,
   createdAt: '01.01.2024',
   isAdmin: true,
 };
 
 const ensureAdmin = (members: Member[]): Member[] => {
+  // Şifre yapılandırılmamışsa admin hesabını hiç eklemiyoruz (bkz. yukarıdaki not).
+  if (!ADMIN_PASSWORD) {
+    return members.filter((m) => m.id !== DEFAULT_ADMIN.id);
+  }
   const hasAdmin = members.some((m) => m.id === DEFAULT_ADMIN.id);
-  return hasAdmin ? members : [DEFAULT_ADMIN, ...members];
+  if (!hasAdmin) return [DEFAULT_ADMIN, ...members];
+  // Zaten varsa, .env'deki güncel şifreyle senkron tut (kalıcı depoda eski şifre kalmasın).
+  return members.map((m) => (m.id === DEFAULT_ADMIN.id ? { ...m, password: ADMIN_PASSWORD } : m));
 };
 
 const loadSavedMembers = async (): Promise<Member[]> => {
@@ -103,9 +142,12 @@ const MembersContext = createContext<MembersContextType>({
   currentUser: null,
   registerMember: () => ({ success: false, error: 'MembersProvider bulunamadı' }),
   login: () => ({ success: false, error: 'MembersProvider bulunamadı' }),
+  loginWithProvider: () => ({ success: false, error: 'MembersProvider bulunamadı' }),
   logout: () => {},
   deleteAccount: () => {},
   updateCurrentUser: () => ({ success: false, error: 'MembersProvider bulunamadı' }),
+  setAdsRemovedUntil: () => {},
+  changePassword: () => ({ success: false, error: 'MembersProvider bulunamadı' }),
   resetPassword: () => ({ success: false, error: 'MembersProvider bulunamadı' }),
   isEmailTaken: () => false,
 });
@@ -184,6 +226,42 @@ export const MembersProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return { success: true };
   };
 
+  // Google/Facebook ile giriş: e-postaya göre mevcut bir üye varsa onu kullanır
+  // (aynı e-postayla e-posta/şifre yöntemiyle kayıt olunmuşsa hesaplar birleşir),
+  // yoksa sosyal profil bilgisiyle yeni bir üye oluşturur. Şifre gerekmez.
+  const loginWithProvider = (input: SocialLoginInput): AuthResult => {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    const existing = members.find((m) => m.email.toLowerCase() === normalizedEmail);
+
+    if (existing) {
+      setCurrentUserId(existing.id);
+      persistSessionId(existing.id);
+      return { success: true };
+    }
+
+    const newMember: Member = {
+      id: `${input.provider}-${input.providerId}`,
+      fullName: input.fullName,
+      email: input.email,
+      password: '',
+      createdAt: new Date().toLocaleDateString('tr-TR'),
+      avatarUri: input.avatarUri,
+      provider: input.provider,
+      providerId: input.providerId,
+    };
+
+    setMembers((prev) => {
+      const next = [newMember, ...prev];
+      persistMembers(next);
+      return next;
+    });
+
+    setCurrentUserId(newMember.id);
+    persistSessionId(newMember.id);
+
+    return { success: true };
+  };
+
   const logout = () => {
     setCurrentUserId(null);
     persistSessionId(null);
@@ -232,6 +310,41 @@ export const MembersProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return { success: true };
   };
 
+  // Satın alma (ya da "Satın Alımları Geri Yükle") başarılı olduğunda çağrılır;
+  // giriş yapılmış kullanıcının hesabına aylık reklamsız abonelik bitiş tarihini işler.
+  // until = null verilirse abonelik kaldırılır (örn. RevenueCat "expired" bildirirse).
+  const setAdsRemovedUntil = (until: number | null) => {
+    if (!currentUser) return;
+    setMembers((prev) => {
+      const next = prev.map((m) => (m.id === currentUser.id ? { ...m, adsRemovedUntil: until ?? undefined } : m));
+      persistMembers(next);
+      return next;
+    });
+  };
+
+  const changePassword = (currentPassword: string, newPassword: string): AuthResult => {
+    if (!currentUser) {
+      return { success: false, error: 'Önce giriş yapmalısınız.' };
+    }
+    if (currentUser.password !== currentPassword) {
+      return { success: false, error: 'Mevcut şifreniz yanlış.' };
+    }
+    if (newPassword.length < 6) {
+      return { success: false, error: 'Yeni şifre en az 6 karakter olmalı.' };
+    }
+    if (newPassword === currentPassword) {
+      return { success: false, error: 'Yeni şifre, mevcut şifreyle aynı olamaz.' };
+    }
+
+    setMembers((prev) => {
+      const next = prev.map((m) => (m.id === currentUser.id ? { ...m, password: newPassword } : m));
+      persistMembers(next);
+      return next;
+    });
+
+    return { success: true };
+  };
+
   const resetPassword = (email: string, newPassword: string): AuthResult => {
     const normalized = email.trim().toLowerCase();
     const match = members.find((m) => m.email.toLowerCase() === normalized);
@@ -259,9 +372,12 @@ export const MembersProvider: React.FC<{ children: React.ReactNode }> = ({ child
         currentUser,
         registerMember,
         login,
+        loginWithProvider,
         logout,
         deleteAccount,
         updateCurrentUser,
+        setAdsRemovedUntil,
+        changePassword,
         resetPassword,
         isEmailTaken,
       }}

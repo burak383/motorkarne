@@ -1,7 +1,11 @@
 import type { Motor } from '../data/catalog';
 
 function classifyFuelCategory(fuel: string): 'benzin' | 'dizel' | 'hibrit' | 'elektrik' | 'lpg' {
-  const f = fuel.toLowerCase();
+  // NOT: JS'in standart (yerel-bağımsız) toLowerCase()'i Türkçe büyük 'İ' harfini
+  // 'i' + görünmez birleşik nokta işaretine çeviriyor, düz 'i' değil — bu da
+  // .includes() ile yapılan eşleşmeleri sessizce kırabiliyor. Önce 'İ'yi düz 'I'ya
+  // çevirip sonra küçültmek bu sorunu önlüyor.
+  const f = fuel.replace(/İ/g, 'I').toLowerCase();
   if (f.includes('elektrik')) return 'elektrik';
   if (f.includes('lpg')) return 'lpg';
   if (f.includes('hibrit') || f.includes('hybrid')) return 'hibrit';

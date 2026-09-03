@@ -1,13 +1,14 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView, NativeSyntheticEvent,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, NativeSyntheticEvent,
   NativeScrollEvent, Modal, TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ArrowLeft, History, ChevronDown, ArrowLeftRight, Info, Lightbulb,
-  AlertTriangle, ShieldCheck, ArrowUp, X, Search, Share2, Gauge, Wallet, Settings2, RotateCcw,
+  AlertTriangle, ShieldCheck, ArrowUp, X, Search, Share2, Gauge, Settings2, RotateCcw,
 } from 'lucide-react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -16,11 +17,17 @@ import { useTheme } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ScoreRing } from '../components/ScoreRing';
 import { useFavorites } from '../state/FavoritesContext';
+import { useMembers } from '../state/MembersContext';
+import { confirmAction } from '../utils/confirm';
+import { useAds } from '../state/AdsContext';
+import BannerAdSlot from '../components/BannerAdSlot';
 import { useCatalog } from '../state/CatalogContext';
 import type { Motor } from '../data/catalog';
 import { getRiskInfo, RISK_TIER_ORDER } from '../utils/risk';
 import { usePricing } from '../state/PricingContext';
 import { estimateTotalCostOfOwnership } from '../utils/tco';
+import ProfileAvatarButton from '../components/ProfileAvatarButton';
+import { useUsageStats } from '../state/UsageStatsContext';
 
 type Nav = NativeStackNavigationProp<any>;
 
@@ -30,6 +37,13 @@ const DEFAULT_MOTOR_B = 'dci-15-k9k';
 export default function KarsilastirScreen() {
   const nav = useNavigation<Nav>();
   const { addComparison } = useFavorites();
+  const { currentUser } = useMembers();
+  const { registerScreenView } = useAds();
+  useFocusEffect(
+    React.useCallback(() => {
+      registerScreenView();
+    }, [])
+  );
   const { themeColors: colors } = useTheme();
   const { t } = useLanguage();
   const s = useMemo(() => getStyles(colors), [colors]);
@@ -42,6 +56,13 @@ export default function KarsilastirScreen() {
 
   const motorA = getMotorById(motorAId) ?? motors[0];
   const motorB = getMotorById(motorBId) ?? motors[1] ?? motors[0];
+  const { recordCompare } = useUsageStats();
+
+  useEffect(() => {
+    recordCompare(motorA.id);
+    recordCompare(motorB.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [motorA.id, motorB.id]);
 
   const { pricing, annualKm, setAnnualKm, updatePricing, resetToDefaults, source } = usePricing();
   const tcoA = useMemo(() => estimateTotalCostOfOwnership(motorA, annualKm, pricing), [motorA, annualKm, pricing]);
@@ -138,20 +159,20 @@ export default function KarsilastirScreen() {
       : 'B';
 
   const techRows: { label: string; a: string; b: string; aWin: boolean; bWin: boolean }[] = [
-    { label: 'Yakıt tipi', a: motorA.fuel, b: motorB.fuel, aWin: false, bWin: false },
-    { label: 'Güç', a: motorA.power, b: motorB.power, aWin: false, bWin: false },
-    { label: 'Şanzıman', a: motorA.transmission, b: motorB.transmission, aWin: false, bWin: false },
-    { label: 'Tork', a: motorA.torque ?? '—', b: motorB.torque ?? '—', aWin: false, bWin: false },
-    { label: 'Tüketim', a: motorA.consumption ?? '—', b: motorB.consumption ?? '—', aWin: false, bWin: false },
+    { label: t.fuel, a: motorA.fuel, b: motorB.fuel, aWin: false, bWin: false },
+    { label: t.power, a: motorA.power, b: motorB.power, aWin: false, bWin: false },
+    { label: t.transmission, a: motorA.transmission, b: motorB.transmission, aWin: false, bWin: false },
+    { label: t.karTork, a: motorA.torque ?? '—', b: motorB.torque ?? '—', aWin: false, bWin: false },
+    { label: t.karTuketim, a: motorA.consumption ?? '—', b: motorB.consumption ?? '—', aWin: false, bWin: false },
     {
-      label: 'Güvenilirlik skoru',
+      label: t.karGuvenilirlikSkoru,
       a: motorA.score.toFixed(1),
       b: motorB.score.toFixed(1),
       aWin: scoreWinner === 'A',
       bWin: scoreWinner === 'B',
     },
     {
-      label: 'Risk seviyesi',
+      label: t.karRiskSeviyesi,
       a: riskInfoA.label,
       b: riskInfoB.label,
       aWin: riskWinner === 'A',
@@ -175,13 +196,22 @@ export default function KarsilastirScreen() {
     : 'İki motor da güvenilirlik açısından birbirine oldukça yakın.';
 
   const handleSave = () => {
+    if (!currentUser) {
+      confirmAction(
+        'MotorKarne',
+        'Karşılaştırmaları kaydedebilmek için giriş yapmanız gerekir.',
+        () => nav.navigate('GirisYap'),
+        { confirmText: 'Giriş Yap', cancelText: 'Vazgeç' }
+      );
+      return;
+    }
     addComparison(motorAId, motorBId);
     Alert.alert('MotorKarne', 'Karşılaştırma kaydedildi.');
     nav.navigate('Kaydedilenler');
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flex: 1, position: 'relative' }}>
         <ScrollView
           ref={scrollViewRef}
@@ -197,13 +227,16 @@ export default function KarsilastirScreen() {
                 <ArrowLeft size={18} color={colors.cardForeground} />
               </TouchableOpacity>
               <View>
-                <Text style={s.eyebrow}>Motor analizi</Text>
+                <Text style={s.eyebrow}>{t.karMotorAnalizi}</Text>
                 <Text style={s.title}>{t.compareTitle}</Text>
               </View>
             </View>
-            <TouchableOpacity style={s.iconBtn} onPress={() => nav.navigate('Kaydedilenler')}>
-              <History size={18} color={colors.cardForeground} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <TouchableOpacity style={s.iconBtn} onPress={() => nav.navigate('Kaydedilenler')}>
+                <History size={18} color={colors.cardForeground} />
+              </TouchableOpacity>
+              <ProfileAvatarButton />
+            </View>
           </View>
 
           {/* Side by side */}
@@ -235,7 +268,7 @@ export default function KarsilastirScreen() {
             </View>
             <View style={s.normalized}>
               <Info size={14} color={colors.primary} />
-              <Text style={s.normalizedText}>Karşılaştırmak için A veya B kartına dokunun.</Text>
+              <Text style={s.normalizedText}>{t.karDokunmaBilgisi}</Text>
             </View>
           </View>
 
@@ -244,7 +277,7 @@ export default function KarsilastirScreen() {
             <View style={[s.rowBetween, { marginBottom: 12 }]}>
               <View>
                 <Text style={s.sectionTag}>{t.decisionSummary}</Text>
-                <Text style={s.sectionTitleLg}>Genel Sonuç</Text>
+                <Text style={s.sectionTitleLg}>{t.karGenelSonuc}</Text>
               </View>
               <View
                 style={[
@@ -268,21 +301,21 @@ export default function KarsilastirScreen() {
                     <ScoreRing score={motorA.score} size={56} stroke={5} color={colors.primary} />
                     <View style={{ marginLeft: 12, flex: 1 }}>
                       <Text style={s.scoreName} numberOfLines={1}>{motorA.name}</Text>
-                      <Text style={s.scoreLabel}>Güvenilirlik</Text>
+                      <Text style={s.scoreLabel}>{t.reliability}</Text>
                     </View>
                   </View>
                   <View style={s.sbsScore}>
                     <ScoreRing score={motorB.score} size={56} stroke={5} color={colors.success} />
                     <View style={{ marginLeft: 12, flex: 1 }}>
                       <Text style={s.scoreName} numberOfLines={1}>{motorB.name}</Text>
-                      <Text style={s.scoreLabel}>Güvenilirlik</Text>
+                      <Text style={s.scoreLabel}>{t.reliability}</Text>
                     </View>
                   </View>
                 </View>
                 <View style={s.recommendation}>
                   <Lightbulb size={16} color={colors.accent} />
                   <Text style={s.recommendationText}>
-                    <Text style={{ fontFamily: fonts.body.bold }}>Öneri: </Text>
+                    <Text style={{ fontFamily: fonts.body.bold }}>{t.karOneri} </Text>
                     {recommendationText}
                   </Text>
                 </View>
@@ -301,12 +334,12 @@ export default function KarsilastirScreen() {
             <View style={[s.rowBetween, { paddingHorizontal: 20 }]}>
               <View>
                 <Text style={s.sectionTag}>{t.techData}</Text>
-                <Text style={s.sectionTitleLg}>Yan yana kıyas</Text>
+                <Text style={s.sectionTitleLg}>{t.karYanYanaKiyas}</Text>
               </View>
             </View>
             <View style={s.table}>
               <View style={[s.tableHeader, s.tableRow3]}>
-                <Text style={s.thLeft}>Özellik</Text>
+                <Text style={s.thLeft}>{t.karOzellik}</Text>
                 <Text style={[s.th, { color: colors.primary }]} numberOfLines={1}>A</Text>
                 <Text style={[s.th, { color: colors.success }]} numberOfLines={1}>B</Text>
               </View>
@@ -324,8 +357,8 @@ export default function KarsilastirScreen() {
           <View style={{ marginTop: 28, paddingHorizontal: 20 }}>
             <View style={s.rowBetween}>
               <View>
-                <Text style={s.sectionTag}>Yıllık tahmini</Text>
-                <Text style={s.sectionTitleLg}>Toplam Sahip Olma Maliyeti</Text>
+                <Text style={s.sectionTag}>{t.karYillikTahmini}</Text>
+                <Text style={s.sectionTitleLg}>{t.karTSOM}</Text>
               </View>
               <TouchableOpacity style={s.tcoSettingsBtn} onPress={openSettings}>
                 <Settings2 size={16} color={colors.mutedForeground} />
@@ -337,14 +370,14 @@ export default function KarsilastirScreen() {
 
             <View style={s.table}>
               <View style={[s.tableHeader, s.tableRow3]}>
-                <Text style={s.thLeft}>Kalem</Text>
+                <Text style={s.thLeft}>{t.karKalem}</Text>
                 <Text style={[s.th, { color: colors.primary }]}>A</Text>
                 <Text style={[s.th, { color: colors.success }]}>B</Text>
               </View>
               {[
-                { label: 'Yakıt', a: tcoA.fuel, b: tcoB.fuel },
-                { label: 'MTV (tahmini)', a: tcoA.mtv, b: tcoB.mtv },
-                { label: 'Bakım (tahmini)', a: tcoA.maintenance, b: tcoB.maintenance },
+                { label: t.fuel, a: tcoA.fuel, b: tcoB.fuel },
+                { label: t.karMtvTahmini, a: tcoA.mtv, b: tcoB.mtv },
+                { label: t.karBakimTahmini, a: tcoA.maintenance, b: tcoB.maintenance },
               ].map((row, i) => (
                 <View key={row.label} style={[s.tableRow3, s.tableRowBorder, { alignItems: 'center' }]}>
                   <Text style={s.tdLeft}>{row.label}</Text>
@@ -353,7 +386,7 @@ export default function KarsilastirScreen() {
                 </View>
               ))}
               <View style={[s.tableRow3, { alignItems: 'center', backgroundColor: colors.muted }]}>
-                <Text style={[s.tdLeft, { fontFamily: fonts.body.bold, color: colors.foreground }]}>Toplam / yıl</Text>
+                <Text style={[s.tdLeft, { fontFamily: fonts.body.bold, color: colors.foreground }]}>{t.karToplamYil}</Text>
                 <Text
                   style={[
                     s.td,
@@ -384,7 +417,7 @@ export default function KarsilastirScreen() {
                 MTV, aracın 1-3 yaş dilimine göre yaklaşık hesaplanmıştır. Yakıt fiyatlarını ve yıllık kilometrenizi
                 {'  '}
                 <Text style={{ color: colors.primary, fontFamily: fonts.body.bold }} onPress={openSettings}>
-                  ayarlardan
+                  {t.karAyarlardan}
                 </Text>
                 {' '}güncelleyebilirsiniz.
                 {source === 'default' && ' (Şu an gömülü varsayılan fiyatlar kullanılıyor.)'}
@@ -396,7 +429,7 @@ export default function KarsilastirScreen() {
           <View style={{ marginTop: 28, paddingHorizontal: 20 }}>
             <View style={s.rowBetween}>
               <View>
-                <Text style={s.sectionTag}>Kontrol listesi</Text>
+                <Text style={s.sectionTag}>{t.karKontrolListesi}</Text>
                 <Text style={s.sectionTitleLg}>{t.chronicRisk}</Text>
               </View>
               <ShieldCheck size={20} color={colors.success} />
@@ -412,7 +445,7 @@ export default function KarsilastirScreen() {
                     <Text style={s.chronicMotorName} numberOfLines={1}>{motor.name}</Text>
                   </View>
                   {motor.chronic.length === 0 ? (
-                    <Text style={s.noChronicText}>Bilinen kronik bir sorun kaydedilmemiş.</Text>
+                    <Text style={s.noChronicText}>{t.karBilinenKronikYok}</Text>
                   ) : (
                     <View style={s.table}>
                       {motor.chronic.map((c, i) => (
@@ -440,7 +473,7 @@ export default function KarsilastirScreen() {
             )}
 
             <TouchableOpacity style={s.saveBtn} onPress={handleSave}>
-              <Text style={s.saveBtnText}>Karşılaştırmayı Kaydet</Text>
+              <Text style={s.saveBtnText}>{t.karKarsilastirmayiKaydet}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -472,7 +505,7 @@ export default function KarsilastirScreen() {
               <Search size={16} color={colors.mutedForeground} />
               <TextInput
                 style={s.modalSearchInput}
-                placeholder="Motor, marka veya kod ara..."
+                placeholder={t.karMotorAraPlaceholder}
                 placeholderTextColor={colors.mutedForeground}
                 value={pickerQuery}
                 onChangeText={setPickerQuery}
@@ -490,7 +523,7 @@ export default function KarsilastirScreen() {
                 </TouchableOpacity>
               ))}
               {pickerResults.length === 0 && (
-                <Text style={s.modalEmptyText}>Sonuç bulunamadı.</Text>
+                <Text style={s.modalEmptyText}>{t.bulSonucBulunamadi}</Text>
               )}
             </ScrollView>
           </View>
@@ -502,13 +535,13 @@ export default function KarsilastirScreen() {
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Maliyet Varsayımları</Text>
+              <Text style={s.modalTitle}>{t.karMaliyetVarsayimlari}</Text>
               <TouchableOpacity style={s.modalCloseBtn} onPress={() => setSettingsOpen(false)}>
                 <X size={18} color={colors.cardForeground} />
               </TouchableOpacity>
             </View>
             <ScrollView style={{ maxHeight: 420 }}>
-              <Text style={s.settingsLabel}>Yıllık Kilometre</Text>
+              <Text style={s.settingsLabel}>{t.karYillikKm}</Text>
               <TextInput
                 style={s.settingsInput}
                 value={kmInput}
@@ -518,20 +551,20 @@ export default function KarsilastirScreen() {
                 placeholderTextColor={colors.mutedForeground}
               />
 
-              <Text style={[s.settingsLabel, { marginTop: 16 }]}>Benzin (TL/L)</Text>
+              <Text style={[s.settingsLabel, { marginTop: 16 }]}>{t.karBenzinTLL}</Text>
               <TextInput style={s.settingsInput} value={benzinInput} onChangeText={setBenzinInput} keyboardType="numeric" />
 
-              <Text style={[s.settingsLabel, { marginTop: 16 }]}>Dizel (TL/L)</Text>
+              <Text style={[s.settingsLabel, { marginTop: 16 }]}>{t.karDizelTLL}</Text>
               <TextInput style={s.settingsInput} value={dizelInput} onChangeText={setDizelInput} keyboardType="numeric" />
 
-              <Text style={[s.settingsLabel, { marginTop: 16 }]}>LPG (TL/L)</Text>
+              <Text style={[s.settingsLabel, { marginTop: 16 }]}>{t.karLpgTLL}</Text>
               <TextInput style={s.settingsInput} value={lpgInput} onChangeText={setLpgInput} keyboardType="numeric" />
 
-              <Text style={[s.settingsLabel, { marginTop: 16 }]}>Elektrik (TL/kWh)</Text>
+              <Text style={[s.settingsLabel, { marginTop: 16 }]}>{t.karElektrikTLKwh}</Text>
               <TextInput style={s.settingsInput} value={elektrikInput} onChangeText={setElektrikInput} keyboardType="numeric" />
 
               <TouchableOpacity style={s.saveBtn} onPress={saveSettings}>
-                <Text style={s.saveBtnText}>Kaydet</Text>
+                <Text style={s.saveBtnText}>{t.save}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -542,12 +575,13 @@ export default function KarsilastirScreen() {
                 }}
               >
                 <RotateCcw size={14} color={colors.mutedForeground} />
-                <Text style={s.resetPricingBtnText}>Varsayılanlara Dön</Text>
+                <Text style={s.resetPricingBtnText}>{t.karVarsayilanlaraDon}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
       </Modal>
+      <BannerAdSlot />
     </SafeAreaView>
   );
 }

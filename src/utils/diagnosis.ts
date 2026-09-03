@@ -19,6 +19,9 @@ export const SYMPTOMS: Symptom[] = [
   { id: 'tuketim', label: 'Beklenenden yüksek yakıt tüketimi', keywords: ['yakıt tüketiminde artış', 'tüketim artışı', 'yüksek tüketim'] },
   { id: 'triger', label: 'Triger kayışı veya zinciri ile ilgili şüphe', keywords: ['triger', 'zincir', 'kayış', 'gerdirici'] },
   { id: 'titresim', label: 'Rölantide titreşim / dengesiz çalışma', keywords: ['rölanti', 'titreşim', 'kaba çalışma', 'dengesiz'] },
+  { id: 'adblue', label: 'AdBlue sistemi arızası', keywords: ['adblue', 'ad blue'] },
+  { id: 'aku', label: 'Araç çalışmıyor / akü bitiyor', keywords: ['12v', 'akü bitmesi', 'akü boşalması', 'yardımcı akü'] },
+  { id: 'geri-cagirma', label: 'Resmi geri çağırma kapsamında mı?', keywords: ['geri çağırma', 'recall'] },
 ];
 
 export interface DiagnosisMatch {

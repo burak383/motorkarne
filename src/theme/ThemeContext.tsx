@@ -13,13 +13,16 @@ interface ThemeContextType {
 const STORAGE_KEY = 'app_theme';
 
 const ThemeContext = createContext<ThemeContextType>({
-  mode: 'dark',
+  mode: 'light',
   toggleTheme: () => {},
-  themeColors: darkColors || defaultColors,
+  themeColors: lightColors || defaultColors,
 });
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [mode, setMode] = useState<ThemeMode>('dark');
+  // Varsayılan (ilk açılış / kayıtlı tercih yoksa) mod gündüz (light) — kullanıcı
+  // dilerse toggleTheme ile karanlık moda geçebilir, tercihi AsyncStorage'da
+  // saklanıp bir sonraki açılışta hatırlanıyor.
+  const [mode, setMode] = useState<ThemeMode>('light');
 
   useEffect(() => {
     (async () => {

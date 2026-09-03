@@ -1,8 +1,9 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, NativeSyntheticEvent, NativeScrollEvent,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Search, SlidersHorizontal, ChevronRight, Settings2, List, ArrowUp } from 'lucide-react-native';
 import { fonts, radius, rgba } from '../theme/theme';
@@ -11,40 +12,16 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { getBrandLogo } from '../data/images';
 import RemoteImage from '../components/RemoteImage';
 import { useCatalog } from '../state/CatalogContext';
+import { useAds } from '../state/AdsContext';
+import BannerAdSlot from '../components/BannerAdSlot';
+import { getRiskInfo } from '../utils/risk';
+import ProfileAvatarButton from '../components/ProfileAvatarButton';
 
 type Nav = NativeStackNavigationProp<any>;
 
 const segments = ['Tümü', 'Sedan', 'SUV', 'Elektrikli', 'Hibrit', 'Ticari'];
 
-type ColorKey = 'success' | 'primary' | 'chart3';
-
-const popularBrands: { name: string; motors: string; tag: string; tagColor: ColorKey; icon: string }[] = [
-  {
-    name: 'Volkswagen', motors: '1.5 TSI, 1.6 TDI, 2.0 TDI', tag: '24 motor', tagColor: 'success',
-    icon: 'EA288 EVO · DSG',
-  },
-  {
-    name: 'Toyota', motors: 'Corolla, Yaris, C-HR', tag: '9 motor', tagColor: 'success',
-    icon: '1.8 Hybrid · e-CVT',
-  },
-  {
-    name: 'Renault', motors: 'Clio, Megane, Austral', tag: '14 motor', tagColor: 'primary',
-    icon: '1.5 dCi · EDC',
-  },
-  {
-    name: 'Peugeot', motors: '208, 308, 3008', tag: '11 motor', tagColor: 'chart3',
-    icon: '1.2 PureTech · EAT8',
-  },
-];
-
-const alphaBrands: { name: string; motors: string; score: number; status: string; color: ColorKey }[] = [
-  { name: 'BMW', motors: 'B48 · B47 · N13 · Prince', score: 7.2, status: 'kontrollü', color: 'chart3' },
-  { name: 'Mercedes-Benz', motors: 'M282 · OM654 · M274', score: 8.4, status: 'yüksek konfor', color: 'success' },
-  { name: 'Fiat', motors: 'Egea · Doblo · 1.3 Multijet', score: 8.7, status: 'düşük risk', color: 'success' },
-  { name: 'Ford', motors: 'Focus · Puma · 1.0 EcoBoost', score: 6.9, status: 'izlenmeli', color: 'chart3' },
-  { name: 'Hyundai', motors: 'i20 · Bayon · 1.0 T-GDI', score: 8.1, status: 'düşük risk', color: 'success' },
-  { name: 'Škoda', motors: 'Octavia · Kamiq · 1.0 TSI', score: 7.9, status: 'kontrollü', color: 'chart3' },
-];
+type ColorKey = 'success' | 'primary' | 'chart3' | 'destructive';
 
 export default function MarkalarKatalogScreen() {
   const nav = useNavigation<Nav>();
@@ -52,13 +29,54 @@ export default function MarkalarKatalogScreen() {
   const { t } = useLanguage();
   const s = useMemo(() => getStyles(colors), [colors]);
   const { motors } = useCatalog();
+  const { registerScreenView } = useAds();
+  useFocusEffect(
+    React.useCallback(() => {
+      registerScreenView();
+    }, [])
+  );
   const brandCount = useMemo(
     () => new Set(motors.flatMap((m) => m.brands)).size,
     [motors]
   );
+
+  const brandStats = useMemo(() => {
+    const map = new Map<string, typeof motors>();
+    motors.forEach((m) => {
+      m.brands.forEach((b) => {
+        if (!map.has(b)) map.set(b, []);
+        map.get(b)!.push(m);
+      });
+    });
+    return Array.from(map.entries()).map(([name, list]) => {
+      const avgScore = list.reduce((sum, m) => sum + m.score, 0) / list.length;
+      return {
+        name,
+        motorCount: list.length,
+        avgScore,
+        motorNames: list.map((m) => m.name).slice(0, 3).join(', '),
+        motorCodes: list.map((m) => m.code).slice(0, 3).join(' · '),
+      };
+    });
+  }, [motors]);
+
+  const popularBrands = useMemo(
+    () => [...brandStats].sort((a, b) => b.motorCount - a.motorCount).slice(0, 4),
+    [brandStats]
+  );
+
+  const alphaBrands = useMemo(
+    () => [...brandStats].sort((a, b) => a.name.localeCompare(b.name, 'tr')),
+    [brandStats]
+  );
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [activeSegmentIdx, setActiveSegmentIdx] = useState(0);
+  const alphaSectionY = useRef(0);
+
+  const scrollToAlphaList = () => {
+    scrollViewRef.current?.scrollTo({ y: alphaSectionY.current, animated: true });
+  };
 
   const handleSegmentPress = (i: number) => {
     setActiveSegmentIdx(i);
@@ -79,7 +97,7 @@ export default function MarkalarKatalogScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flex: 1, position: 'relative' }}>
         <ScrollView
           ref={scrollViewRef}
@@ -96,9 +114,12 @@ export default function MarkalarKatalogScreen() {
                 <Text style={s.title}>{t.katalogTitle}</Text>
                 <Text style={s.subtitle}>{t.katalogSubtitle}</Text>
               </View>
-              <TouchableOpacity style={s.iconBtn} onPress={() => nav.navigate('AramaSonuclari')}>
-                <SlidersHorizontal size={20} color={colors.cardForeground} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity style={s.iconBtn} onPress={() => nav.navigate('AramaSonuclari')}>
+                  <SlidersHorizontal size={20} color={colors.cardForeground} />
+                </TouchableOpacity>
+                <ProfileAvatarButton />
+              </View>
             </View>
             <TouchableOpacity style={s.searchRow} onPress={() => nav.navigate('AramaSonuclari')}>
               <Search size={20} color={colors.mutedForeground} />
@@ -114,7 +135,7 @@ export default function MarkalarKatalogScreen() {
                 <Text style={s.segmentLabel}>{t.katalogSectionLabel}</Text>
                 <Text style={s.segmentTitle}>{t.katalogSectionTitle}</Text>
               </View>
-              <Text style={s.segmentMeta}>{brandCount} marka • {motors.length} Motor</Text>
+              <Text style={s.segmentMeta}>{brandCount} {t.katBrandWord} • {motors.length} {t.katMotorWordCap}</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 8, marginTop: 12 }}>
               {segments.map((seg, i) => (
@@ -138,8 +159,8 @@ export default function MarkalarKatalogScreen() {
                 <Text style={s.popularTag}>{t.katalogPopularTag}</Text>
                 <Text style={s.sectionTitleLg}>{t.katalogPopularTitle}</Text>
               </View>
-              <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} onPress={() => nav.navigate('AramaSonuclari')}>
-                <Text style={s.seeAll}>Tümünü gör </Text>
+              <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} onPress={scrollToAlphaList}>
+                <Text style={s.seeAll}>{t.seeAll} </Text>
                 <ChevronRight size={14} color={colors.primary} />
               </TouchableOpacity>
             </View>
@@ -151,15 +172,15 @@ export default function MarkalarKatalogScreen() {
                     <View style={s.brandLogoBox}>
                       <RemoteImage uri={getBrandLogo(b.name)} style={s.brandLogo} resizeMode="contain" />
                     </View>
-                    <View style={[s.motorCount, { backgroundColor: rgba(colors[b.tagColor], 0.15) }]}>
-                      <Text style={[s.motorCountText, { color: colors[b.tagColor] }]}>{b.tag}</Text>
+                    <View style={[s.motorCount, { backgroundColor: rgba(colors[getRiskInfo(b.avgScore).colorKey], 0.15) }]}>
+                      <Text style={[s.motorCountText, { color: colors[getRiskInfo(b.avgScore).colorKey] }]}>{b.motorCount} {t.katMotorWordLower}</Text>
                     </View>
                   </View>
                   <Text style={s.brandName}>{b.name}</Text>
-                  <Text style={s.brandMotors}>{b.motors}</Text>
+                  <Text style={s.brandMotors}>{b.motorNames}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}>
                     <Settings2 size={14} color={colors.primary} />
-                    <Text style={s.brandIconText}>{b.icon}</Text>
+                    <Text style={s.brandIconText}>{b.motorCodes}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -167,7 +188,10 @@ export default function MarkalarKatalogScreen() {
           </View>
 
           {/* Alpha list */}
-          <View style={{ marginTop: 32, paddingHorizontal: 20 }}>
+          <View
+            style={{ marginTop: 32, paddingHorizontal: 20 }}
+            onLayout={(e) => { alphaSectionY.current = e.nativeEvent.layout.y; }}
+          >
             <View style={s.rowBetween}>
               <View>
                 <Text style={s.sectionTitleLg}>{t.katalogAlphaTitle}</Text>
@@ -189,11 +213,11 @@ export default function MarkalarKatalogScreen() {
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={s.alphaName}>{b.name}</Text>
-                    <Text style={s.alphaMotors} numberOfLines={1}>{b.motors}</Text>
+                    <Text style={s.alphaMotors} numberOfLines={1}>{b.motorCodes}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[s.alphaScore, { color: colors[b.color] }]}>{b.score.toFixed(1)} / 10</Text>
-                    <Text style={s.alphaStatus}>{b.status}</Text>
+                    <Text style={[s.alphaScore, { color: colors[getRiskInfo(b.avgScore).colorKey] }]}>{b.avgScore.toFixed(1)} / 10</Text>
+                    <Text style={s.alphaStatus}>{getRiskInfo(b.avgScore).label}</Text>
                   </View>
                   <ChevronRight size={16} color={colors.mutedForeground} />
                 </TouchableOpacity>
@@ -214,6 +238,7 @@ export default function MarkalarKatalogScreen() {
           </TouchableOpacity>
         )}
       </View>
+      <BannerAdSlot />
     </SafeAreaView>
   );
 }

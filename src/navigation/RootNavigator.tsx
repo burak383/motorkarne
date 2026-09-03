@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Compass,
   LayoutGrid,
@@ -32,11 +33,14 @@ import GizlilikPolitikasiScreen from '../screens/GizlilikPolitikasiScreen';
 import BildirimlerScreen from '../screens/BildirimlerScreen';
 import HakkindaScreen from '../screens/HakkindaScreen';
 import ArizaTeshisiScreen from '../screens/ArizaTeshisiScreen';
+import MotorKoduTaraScreen from '../screens/MotorKoduTaraScreen';
+import LinkleAramaScreen from '../screens/LinkleAramaScreen';
 
 export type RootStackParamList = {
   Tabs: undefined;
   AramaSonuclari: { query?: string; filter?: string } | undefined;
   MotorVeAracDetay: { motorId: string } | undefined;
+  LinkleArama: undefined;
   Profil: undefined;
   AdminPaneli: undefined;
   VeriYonetimi: undefined;
@@ -48,6 +52,7 @@ export type RootStackParamList = {
   Bildirimler: undefined;
   Hakkinda: undefined;
   ArizaTeshisi: undefined;
+  MotorKoduTara: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -75,6 +80,12 @@ function TabsNavigator() {
   const { themeColors } = useTheme();
   const colors = themeColors || darkColors;
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
+  // Android'de sistem navigasyon çubuğu (gesture bar / 3-button bar) içerik alanının
+  // üzerine "edge-to-edge" olarak çiziliyor. Sabit bir yükseklik/padding kullanmak,
+  // sekme çubuğunun o çubuğun altında kalmasına neden oluyor; bu yüzden alt safe area
+  // inset'ini yüksekliğe ve alt padding'e ekliyoruz.
+  const tabBarBottomInset = Math.max(insets.bottom, 8);
 
   return (
     <Tabs.Navigator
@@ -84,8 +95,8 @@ function TabsNavigator() {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 64,
-          paddingBottom: 8,
+          height: 56 + tabBarBottomInset,
+          paddingBottom: tabBarBottomInset,
           paddingTop: 6,
         },
         tabBarActiveTintColor: colors.primary,
@@ -164,6 +175,8 @@ export default function RootNavigator() {
         <Stack.Screen name="Bildirimler" component={BildirimlerScreen} />
         <Stack.Screen name="Hakkinda" component={HakkindaScreen} />
         <Stack.Screen name="ArizaTeshisi" component={ArizaTeshisiScreen} />
+        <Stack.Screen name="MotorKoduTara" component={MotorKoduTaraScreen} />
+        <Stack.Screen name="LinkleArama" component={LinkleAramaScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

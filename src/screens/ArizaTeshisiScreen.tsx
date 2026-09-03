@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Stethoscope, Search, ChevronRight, AlertTriangle, Info } from 'lucide-react-native';
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { useCatalog } from '../state/CatalogContext';
 import { SYMPTOMS, findMatchingIssues, findMatchingIssuesFreeText, type DiagnosisMatch } from '../utils/diagnosis';
 
@@ -13,6 +15,7 @@ type Nav = NativeStackNavigationProp<any>;
 export default function ArizaTeshisiScreen() {
   const nav = useNavigation<Nav>();
   const { themeColors: colors } = useTheme();
+  const { t } = useLanguage();
   const s = useMemo(() => getStyles(colors), [colors]);
   const { motors } = useCatalog();
 
@@ -45,7 +48,7 @@ export default function ArizaTeshisiScreen() {
           <TouchableOpacity style={s.iconBtn} onPress={() => nav.goBack()} accessibilityRole="button" accessibilityLabel="Geri">
             <ArrowLeft size={20} color={colors.cardForeground} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Arıza Teşhisi</Text>
+          <Text style={s.headerTitle}>{t.diagnosisTitle}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -54,8 +57,7 @@ export default function ArizaTeshisiScreen() {
             <Stethoscope size={24} color={colors.primary} />
           </View>
           <Text style={s.introText}>
-            Aracınızda fark ettiğiniz bir belirtiyi seçin veya yazın; hangi motorların bu belirtiyle
-            ilişkili bilinen bir kronik sorunu olduğunu gösterelim.
+            {t.diagnosisIntro}
           </Text>
         </View>
 
@@ -65,7 +67,7 @@ export default function ArizaTeshisiScreen() {
             <Search size={16} color={colors.mutedForeground} />
             <TextInput
               style={s.searchInput}
-              placeholder="örn. tıkırtı sesi, yağ kaçağı, ısınma..."
+              placeholder={t.diagnosisSearchPlaceholder}
               placeholderTextColor={colors.mutedForeground}
               value={freeText}
               onChangeText={(t) => {
@@ -78,7 +80,7 @@ export default function ArizaTeshisiScreen() {
 
         {/* Symptom chips */}
         <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
-          <Text style={s.sectionLabel}>Ya da yaygın bir belirti seçin</Text>
+          <Text style={s.sectionLabel}>{t.diagnosisSectionLabel}</Text>
           <View style={s.chipWrap}>
             {SYMPTOMS.map((symptom) => (
               <TouchableOpacity
@@ -99,19 +101,18 @@ export default function ArizaTeshisiScreen() {
           {!hasSearched ? (
             <View style={s.emptyBox}>
               <Info size={24} color={colors.mutedForeground} style={{ marginBottom: 8 }} />
-              <Text style={s.emptyText}>Bir belirti seçtiğinizde veya yazdığınızda sonuçlar burada görünecek.</Text>
+              <Text style={s.emptyText}>{t.diagnosisEmptyPrompt}</Text>
             </View>
           ) : results.length === 0 ? (
             <View style={s.emptyBox}>
               <Info size={24} color={colors.mutedForeground} style={{ marginBottom: 8 }} />
               <Text style={s.emptyText}>
-                Bu belirtiyle eşleşen bilinen bir kronik sorun bulunamadı. Bu, sorunun nadir olduğu
-                anlamına gelebilir; yine de bir yetkili servise danışmanız önerilir.
+                {t.diagnosisEmptyResults}
               </Text>
             </View>
           ) : (
             <>
-              <Text style={s.resultsCount}>{results.length} eşleşme bulundu</Text>
+              <Text style={s.resultsCount}>{results.length} {t.diagnosisResultsCount}</Text>
               <View style={{ gap: 10, marginTop: 12 }}>
                 {results.map((m, i) => (
                   <TouchableOpacity
@@ -130,7 +131,7 @@ export default function ArizaTeshisiScreen() {
                         <Text style={[s.riskPillText, { color: colors.chart3 }]}>{m.issue.risk}</Text>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={s.detailLink}>Detaya git</Text>
+                        <Text style={s.detailLink}>{t.diagnosisDetailLink}</Text>
                         <ChevronRight size={14} color={colors.primary} />
                       </View>
                     </View>
@@ -142,8 +143,7 @@ export default function ArizaTeshisiScreen() {
         </View>
 
         <Text style={s.disclaimer}>
-          Bu araç yalnızca bilgilendirme amaçlıdır ve kesin bir teşhis değildir. Aracınızda ciddi bir
-          belirti fark ederseniz mutlaka yetkili bir servise başvurun.
+          {t.diagnosisDisclaimer}
         </Text>
       </ScrollView>
     </SafeAreaView>

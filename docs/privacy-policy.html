@@ -23,11 +23,14 @@
   <div class="note">
     <strong>Özet:</strong> Hesap bilgileriniz (ad, e-posta, telefon, şifre) ve uygulama içi
     kişisel verileriniz (favoriler, karşılaştırmalar, yorumlar, bildirimler, profil fotoğrafı)
-    yalnızca kullandığınız cihazda saklanır; bu bilgiler MotorKarne'nın sunucularına
-    gönderilmez. Ayrıca, motor/araç katalog verilerini (marka, model, teknik özellik, güvenilirlik
+    yalnızca kullandığınız cihazda saklanır; bu bilgiler MotorKarne'nın kendi sunucularına
+    gönderilmez. Motor/araç katalog verilerini (marka, model, teknik özellik, güvenilirlik
     bilgisi gibi genel referans verileri — kişisel veri <strong>değildir</strong>) size
-    sunabilmek için uygulama, MotorKarne'nın kendi sunucu altyapısına bağlanır. Bu bağlantı
-    sırasında hiçbir hesap veya kişisel veriniz sunucuya iletilmez.
+    sunabilmek için uygulama, MotorKarne'nın kendi sunucu altyapısına bağlanır; bu bağlantı
+    sırasında hiçbir hesap veya kişisel veriniz bu sunucuya iletilmez. Ayrıca uygulama; Google
+    ile giriş, reklam gösterimi ve abonelik/satın alma işlemleri için Google ve RevenueCat gibi
+    üçüncü taraf servis sağlayıcılar kullanır — bu servislere hangi verilerin, hangi amaçla
+    iletildiği aşağıda ayrı başlıklar altında açıklanmıştır.
   </div>
 
   <h2>1. Toplanan Bilgiler</h2>
@@ -38,17 +41,21 @@
     <li>Telefon numarası (isteğe bağlı)</li>
     <li>Şifre</li>
   </ul>
-  <p>Ayrıca uygulamayı kullanırken favori araçlarınız, kaydettiğiniz motor karşılaştırmaları,
+  <p>Google ile giriş yapmayı tercih ederseniz, yukarıdaki bilgiler yerine Google hesabınızdan
+  paylaşmayı kabul ettiğiniz ad, e-posta adresi ve (varsa) profil fotoğrafı Google tarafından bize
+  iletilir; ayrıca uygulamayı kullanırken favori araçlarınız, kaydettiğiniz motor karşılaştırmaları,
   yazdığınız yorumlar ve profil fotoğrafınız (galeriden seçtiğiniz) cihazınızda saklanır.</p>
 
   <h2>2. Verilerin Saklandığı Yer</h2>
   <p><strong>Kişisel verileriniz</strong> (hesap bilgileriniz, favorileriniz, yorumlarınız, profil
   fotoğrafınız) yalnızca cihazınızın yerel depolama alanında (AsyncStorage) tutulur. Bu nedenle:</p>
   <ul>
-    <li>Kişisel verileriniz internete gönderilmez.</li>
-    <li>Kişisel verileriniz hiçbir üçüncü tarafla paylaşılmaz veya satılmaz.</li>
-    <li>Uygulamayı cihazınızdan kaldırdığınızda (uninstall) bu kişisel veriler kalıcı olarak silinir.</li>
+    <li>Bu veriler MotorKarne'nın kendi sunucularına gönderilmez.</li>
+    <li>Bu veriler MotorKarne tarafından hiçbir üçüncü tarafla paylaşılmaz veya satılmaz.</li>
+    <li>Uygulamayı cihazınızdan kaldırdığınızda (uninstall) bu veriler cihazınızdan kalıcı olarak silinir.</li>
   </ul>
+  <p>Aşağıdaki 3 ve 4. bölümlerde açıklanan reklam ve abonelik/satın alma verileri bu kapsamın
+  <strong>dışındadır</strong> — onlar ilgili üçüncü taraf servis sağlayıcılara iletilir.</p>
   <p><strong>Motor/araç katalog verileri</strong> (marka, model, teknik özellik, güvenilirlik puanı,
   bilinen arıza bilgisi gibi genel referans içerikleri) ise güncel kalabilmesi için MotorKarne'nın
   kendi sunucusundan (bulut tabanlı bir veritabanından) çekilir. Bu veriler genel otomotiv bilgisidir,
@@ -64,27 +71,49 @@
   güvenlik günlüğünde tutulur. Bu günlük yalnızca yönetici işlemlerini kapsar; uygulamayı normal
   şekilde kullanan kullanıcıların hiçbir işlemi bu şekilde kaydedilmez.</p>
 
-  <h2>3. İzinler</h2>
+  <h2>3. Reklamlar ve Reklam Kimliği</h2>
+  <p>Uygulama, Google AdMob aracılığıyla banner ve geçiş reklamları gösterir (abone olmayan
+  kullanıcılar için). AdMob, reklamları göstermek ve ölçümlemek amacıyla cihazınızın reklam
+  kimliğini (Advertising ID), IP adresinizi ve reklam etkileşim bilgilerinizi Google ile paylaşır.
+  Bu veriler MotorKarne tarafından ayrıca saklanmaz; doğrudan Google'ın altyapısına iletilir ve
+  Google'ın kendi gizlilik politikasına tabidir. Reklam kimliğinizi sıfırlamak veya kişiselleştirilmiş
+  reklamları kapatmak isterseniz, cihazınızın Ayarlar → Google → Reklamlar bölümünden bunu
+  yapabilirsiniz.</p>
+
+  <h2>4. Abonelikler ve Satın Almalar</h2>
+  <p>Reklamsız aboneliğinizi satın alabilmeniz için uygulama, Google Play Faturalandırma (Google
+  Play Billing) ve abonelik yönetim altyapısı olarak RevenueCat'i kullanır. Satın alma işleminizi
+  tamamladığınızda, satın alma/abonelik durumunuz (ödeme kartı bilgileriniz DEĞİL — bunlar
+  doğrudan Google Play tarafından işlenir, MotorKarne'ye hiç ulaşmaz) RevenueCat'e iletilir ve
+  aboneliğinizin geçerliliğini doğrulamak amacıyla orada saklanır. Bu veri, MotorKarne'nın kendi
+  yerel hesap sisteminizle (ad/e-posta/şifre) ilişkilendirilmez; abonelik satın almak için uygulama
+  içi bir hesapla giriş yapmış olmanız istenir, ancak abonelik kaydının kendisi Google Play
+  hesabınıza bağlıdır.</p>
+
+  <h2>5. İzinler</h2>
   <p>Uygulama, profil fotoğrafı seçebilmeniz için cihazınızın fotoğraf galerisine erişim izni
   isteyebilir. Bu izin yalnızca siz açıkça bir fotoğraf seçmeyi tercih ettiğinizde kullanılır.</p>
 
-  <h2>4. Verilerinizi Silme Hakkınız</h2>
+  <h2>6. Verilerinizi Silme Hakkınız</h2>
   <p>KVKK ve ilgili veri koruma mevzuatı kapsamında verilerinizin silinmesini isteme hakkına
-  sahipsiniz. Bunu iki şekilde yapabilirsiniz:</p>
+  sahipsiniz. Profil bilgileriniz (ad, e-posta, telefon, şifre, favoriler, yorumlar, profil
+  fotoğrafı) için bunu iki şekilde yapabilirsiniz:</p>
   <ul>
     <li><strong>Uygulama içinden:</strong> Profil → Hesabımı Sil.</li>
-    <li><strong>Uygulama dışından:</strong> Uygulamayı cihazınızdan kaldırmanız (uninstall), tüm
-    verilerin cihazınızdan kalıcı olarak silinmesi için yeterlidir, çünkü veriler yalnızca yerel
-    olarak tutulur. Ek bir talepte bulunmak isterseniz aşağıdaki iletişim adresinden bize
-    ulaşabilirsiniz.</li>
+    <li><strong>Uygulama dışından:</strong> Uygulamayı cihazınızdan kaldırmanız (uninstall), bu
+    verilerin cihazınızdan kalıcı olarak silinmesi için yeterlidir.</li>
   </ul>
+  <p>3. ve 4. bölümlerde açıklanan reklam kimliği ve abonelik/satın alma kayıtları, ilgili üçüncü
+  taraf servis sağlayıcılarda (Google, RevenueCat) tutulduğu için yukarıdaki iki yöntemle otomatik
+  silinmez. Bu veriler için de silme talebinde bulunmak isterseniz aşağıdaki iletişim adresinden
+  bize ulaşabilirsiniz, sizin adınıza ilgili servis sağlayıcıya iletelim.</p>
   <p>Ayrıntılı bilgi için bkz: <a href="./delete-account.html">Hesap ve Veri Silme</a>.</p>
 
-  <h2>5. Çocukların Gizliliği</h2>
+  <h2>7. Çocukların Gizliliği</h2>
   <p>MotorKarne, genel otomotiv bilgisi/karşılaştırma uygulamasıdır ve özellikle çocuklara yönelik
   değildir.</p>
 
-  <h2>6. İletişim</h2>
+  <h2>8. İletişim</h2>
   <p>Bu gizlilik politikasıyla ilgili sorularınız için: <a href="mailto:seolen8@gmail.com">seolen8@gmail.com</a></p>
 
   <footer>MotorKarne © 2026</footer>

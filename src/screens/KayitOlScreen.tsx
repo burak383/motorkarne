@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  SafeAreaView,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -30,6 +30,9 @@ import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useMembers } from '../state/MembersContext';
+import { useGoogleSignIn } from '../utils/socialAuth';
+import { isGoogleAuthConfigured } from '../config/auth';
+import { notifyThenProceed } from '../utils/confirm';
 
 type Nav = NativeStackNavigationProp<any>;
 
@@ -38,7 +41,32 @@ export default function KayitOlScreen() {
   const { themeColors: colors } = useTheme();
   const s = useMemo(() => getStyles(colors), [colors]);
   const { language, t } = useLanguage();
-  const { members, registerMember } = useMembers();
+  const { members, registerMember, loginWithProvider } = useMembers();
+
+  const handleSocialSuccess = (profile: Parameters<typeof loginWithProvider>[0]) => {
+    const result = loginWithProvider(profile);
+    if (!result.success) {
+      Alert.alert('MotorKarne', result.error ?? 'Giriş başarısız oldu.');
+      return;
+    }
+    nav.navigate('Profil');
+  };
+  const handleSocialError = (message: string) => {
+    Alert.alert('MotorKarne', message);
+  };
+
+  const { request: googleRequest, promptAsync: promptGoogle } = useGoogleSignIn(
+    (profile) => handleSocialSuccess(profile),
+    handleSocialError
+  );
+
+  const handleGooglePress = () => {
+    if (!isGoogleAuthConfigured()) {
+      Alert.alert('MotorKarne', 'Google ile giriş henüz yapılandırılmadı.');
+      return;
+    }
+    promptGoogle();
+  };
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -61,7 +89,7 @@ export default function KayitOlScreen() {
 
   const handleRegister = () => {
     if (!consentAccepted) {
-      Alert.alert('MotorKarne', 'Devam etmek için Gizlilik Politikası ve KVKK Aydınlatma Metni\'ni onaylamanız gerekir.');
+      Alert.alert('MotorKarne', 'Devam etmek için Gizlilik Politikası, KVKK Aydınlatma Metni ve Kullanım Şartları\'nı onaylamanız gerekir.');
       return;
     }
     if (password !== confirmPassword) {
@@ -76,12 +104,12 @@ export default function KayitOlScreen() {
       return;
     }
 
-    Alert.alert(
+    notifyThenProceed(
       language === 'tr' ? 'Hoş geldiniz!' : 'Welcome!',
       language === 'tr'
         ? `${fullName.trim()}, üyeliğiniz başarıyla oluşturuldu.`
         : `${fullName.trim()}, your membership was created successfully.`,
-      [{ text: 'Tamam', onPress: () => nav.navigate('Profil') }]
+      () => nav.navigate('Profil')
     );
 
     setFullName('');
@@ -217,15 +245,30 @@ export default function KayitOlScreen() {
               </View>
               <Text style={s.consentText}>
                 <Text onPress={() => nav.navigate('GizlilikPolitikasi')} style={s.consentLink}>
-                  Gizlilik Politikası ve KVKK Aydınlatma Metni
+                  Gizlilik Politikası, KVKK Aydınlatma Metni ve Kullanım Şartları
                 </Text>
-                'ni okudum, kabul ediyorum.
+                'nı okudum, kabul ediyorum.
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={s.registerBtn} onPress={handleRegister}>
               <UserPlus size={18} color={colors.primaryForeground} />
               <Text style={s.registerBtnText}>{t.registerBtn}</Text>
+            </TouchableOpacity>
+
+            <View style={s.dividerRow}>
+              <View style={s.dividerLine} />
+              <Text style={s.dividerText}>veya</Text>
+              <View style={s.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={[s.socialBtn, s.googleBtn]}
+              onPress={handleGooglePress}
+              disabled={!googleRequest}
+            >
+              <Text style={s.googleBtnText}>G</Text>
+              <Text style={s.socialBtnText}>Google ile devam et</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={s.switchLink} onPress={() => nav.navigate('GirisYap')}>
@@ -368,6 +411,22 @@ const getStyles = (colors: any) =>
     registerBtnText: { fontSize: 14, fontFamily: fonts.body.bold, color: colors.primaryForeground },
     switchLink: { alignItems: 'center', marginTop: 14 },
     switchLinkText: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.primary },
+    dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, marginBottom: 14 },
+    dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+    dividerText: { fontSize: 11, color: colors.mutedForeground, fontFamily: fonts.body.semibold },
+    socialBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      height: 48,
+      borderRadius: radius,
+      marginTop: 10,
+      borderWidth: 1,
+    },
+    googleBtn: { backgroundColor: colors.card, borderColor: colors.border },
+    googleBtnText: { fontSize: 16, fontFamily: fonts.heading.bold, color: '#4285F4' },
+    socialBtnText: { fontSize: 14, fontFamily: fonts.body.bold, color: colors.foreground },
     membersSection: { marginHorizontal: 20, marginTop: 24 },
     membersHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
     membersTitle: { fontSize: 13, fontFamily: fonts.body.semibold, color: colors.mutedForeground },

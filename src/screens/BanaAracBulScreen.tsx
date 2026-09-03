@@ -1,9 +1,10 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, NativeSyntheticEvent,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, NativeSyntheticEvent,
   NativeScrollEvent, Modal, TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Sparkles, ChevronDown, ChevronRight, ArrowUp, X, Search, RotateCcw, Info,
@@ -11,11 +12,15 @@ import {
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { vehicles as catalogVehicles, type Vehicle, type Motor } from '../data/catalog';
+import type { Vehicle, Motor } from '../data/catalog';
+import { useVehicles } from '../state/VehicleContext';
+import { useAds } from '../state/AdsContext';
+import BannerAdSlot from '../components/BannerAdSlot';
 import { useCatalog } from '../state/CatalogContext';
 import { getBrandLogo } from '../data/images';
 import RemoteImage from '../components/RemoteImage';
 import { getRiskInfo, type RiskTier } from '../utils/risk';
+import ProfileAvatarButton from '../components/ProfileAvatarButton';
 
 type Nav = NativeStackNavigationProp<any>;
 type FilterField = 'marka' | 'model' | 'yakit' | 'vites' | 'risk' | null;
@@ -46,6 +51,13 @@ function matchesTransmission(transmission: string, bucket: string): boolean {
 }
 
 export default function BanaAracBulScreen() {
+  const { vehicles: catalogVehicles } = useVehicles();
+  const { registerScreenView } = useAds();
+  useFocusEffect(
+    React.useCallback(() => {
+      registerScreenView();
+    }, [])
+  );
   const nav = useNavigation<Nav>();
   const { themeColors: colors } = useTheme();
   const { t } = useLanguage();
@@ -138,7 +150,7 @@ export default function BanaAracBulScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flex: 1, position: 'relative' }}>
         <ScrollView
           ref={scrollViewRef}
@@ -153,10 +165,13 @@ export default function BanaAracBulScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={s.eyebrow}>{t.bulTitle}</Text>
                 <Text style={s.title}>{t.bulHeadline}</Text>
-                <Text style={s.subtitle}>Marka, model, yakıt türü ve vites türünü seçin; size uygun motorları bulalım.</Text>
+                <Text style={s.subtitle}>{t.bulSubtitle}</Text>
               </View>
-              <View style={s.sparkleBtn}>
-                <Sparkles size={20} color={colors.primary} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={s.sparkleBtn}>
+                  <Sparkles size={20} color={colors.primary} />
+                </View>
+                <ProfileAvatarButton />
               </View>
             </View>
           </View>
@@ -165,8 +180,8 @@ export default function BanaAracBulScreen() {
             {/* Marka */}
             <TouchableOpacity style={s.filterRow} onPress={() => openPicker('marka')}>
               <View style={{ flex: 1 }}>
-                <Text style={s.filterLabel}>Marka</Text>
-                <Text style={s.filterValue}>{selectedBrand ?? 'Tümü'}</Text>
+                <Text style={s.filterLabel}>{t.bulMarka}</Text>
+                <Text style={s.filterValue}>{selectedBrand ?? t.all}</Text>
               </View>
               <ChevronDown size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -174,8 +189,8 @@ export default function BanaAracBulScreen() {
             {/* Model */}
             <TouchableOpacity style={s.filterRow} onPress={() => openPicker('model')}>
               <View style={{ flex: 1 }}>
-                <Text style={s.filterLabel}>Model</Text>
-                <Text style={s.filterValue}>{selectedModel?.name ?? 'Tümü'}</Text>
+                <Text style={s.filterLabel}>{t.bulModel}</Text>
+                <Text style={s.filterValue}>{selectedModel?.name ?? t.all}</Text>
               </View>
               <ChevronDown size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -183,8 +198,8 @@ export default function BanaAracBulScreen() {
             {/* Yakıt Türü */}
             <TouchableOpacity style={s.filterRow} onPress={() => openPicker('yakit')}>
               <View style={{ flex: 1 }}>
-                <Text style={s.filterLabel}>Yakıt Türü</Text>
-                <Text style={s.filterValue}>{selectedFuel ?? 'Tümü'}</Text>
+                <Text style={s.filterLabel}>{t.bulYakitTuru}</Text>
+                <Text style={s.filterValue}>{selectedFuel ?? t.all}</Text>
               </View>
               <ChevronDown size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -192,8 +207,8 @@ export default function BanaAracBulScreen() {
             {/* Vites Türü */}
             <TouchableOpacity style={s.filterRow} onPress={() => openPicker('vites')}>
               <View style={{ flex: 1 }}>
-                <Text style={s.filterLabel}>Vites Türü</Text>
-                <Text style={s.filterValue}>{selectedTransmission ?? 'Tümü'}</Text>
+                <Text style={s.filterLabel}>{t.bulVitesTuru}</Text>
+                <Text style={s.filterValue}>{selectedTransmission ?? t.all}</Text>
               </View>
               <ChevronDown size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -201,8 +216,8 @@ export default function BanaAracBulScreen() {
             {/* Sanayi Toleransı */}
             <TouchableOpacity style={s.filterRow} onPress={() => openPicker('risk')}>
               <View style={{ flex: 1 }}>
-                <Text style={s.filterLabel}>Sanayi Toleransınız</Text>
-                <Text style={s.filterValue}>{selectedRisk ?? 'Tümü'}</Text>
+                <Text style={s.filterLabel}>{t.bulSanayiToleransi}</Text>
+                <Text style={s.filterValue}>{selectedRisk ?? t.all}</Text>
               </View>
               <ChevronDown size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -210,7 +225,7 @@ export default function BanaAracBulScreen() {
             {activeFilterCount > 0 && (
               <TouchableOpacity style={s.resetBtn} onPress={resetFilters}>
                 <RotateCcw size={14} color={colors.mutedForeground} />
-                <Text style={s.resetBtnText}>Filtreleri Sıfırla ({activeFilterCount})</Text>
+                <Text style={s.resetBtnText}>{t.bulFiltreleriSifirla} ({activeFilterCount})</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -218,14 +233,14 @@ export default function BanaAracBulScreen() {
           {/* Results */}
           <View style={{ paddingHorizontal: 20, marginTop: 28 }}>
             <View style={s.rowBetween}>
-              <Text style={s.resultsTitle}>Eşleşen Araçlar</Text>
-              <Text style={s.resultsCount}>{results.length} sonuç</Text>
+              <Text style={s.resultsTitle}>{t.bulEslesenAraclar}</Text>
+              <Text style={s.resultsCount}>{results.length} {t.bulSonuc}</Text>
             </View>
 
             {results.length === 0 ? (
               <View style={s.emptyBox}>
                 <Info size={24} color={colors.mutedForeground} style={{ marginBottom: 8 }} />
-                <Text style={s.emptyText}>Bu seçimlere uyan bir araç bulunamadı. Filtreleri değiştirmeyi deneyin.</Text>
+                <Text style={s.emptyText}>{t.bulBosSonuc}</Text>
               </View>
             ) : (
               <View style={{ gap: 10, marginTop: 16 }}>
@@ -273,11 +288,11 @@ export default function BanaAracBulScreen() {
           <View style={s.modalSheet}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>
-                {pickerField === 'marka' && 'Marka Seç'}
-                {pickerField === 'model' && 'Model Seç'}
-                {pickerField === 'yakit' && 'Yakıt Türü Seç'}
-                {pickerField === 'vites' && 'Vites Türü Seç'}
-                {pickerField === 'risk' && 'Sanayi Toleransı Seç'}
+                {pickerField === 'marka' && t.bulMarkaSec}
+                {pickerField === 'model' && t.bulModelSec}
+                {pickerField === 'yakit' && t.bulYakitTuruSec}
+                {pickerField === 'vites' && t.bulVitesTuruSec}
+                {pickerField === 'risk' && t.bulSanayiToleransiSec}
               </Text>
               <TouchableOpacity style={s.modalCloseBtn} onPress={() => setPickerField(null)}>
                 <X size={18} color={colors.cardForeground} />
@@ -289,7 +304,7 @@ export default function BanaAracBulScreen() {
                 <Search size={16} color={colors.mutedForeground} />
                 <TextInput
                   style={s.modalSearchInput}
-                  placeholder={pickerField === 'marka' ? 'Marka ara...' : 'Model ara...'}
+                  placeholder={pickerField === 'marka' ? t.bulMarkaAra : t.bulModelAra}
                   placeholderTextColor={colors.mutedForeground}
                   value={pickerQuery}
                   onChangeText={setPickerQuery}
@@ -310,7 +325,7 @@ export default function BanaAracBulScreen() {
                   if (pickerField === 'risk') { setSelectedRisk(null); setPickerField(null); }
                 }}
               >
-                <Text style={s.modalRowName}>Tümü</Text>
+                <Text style={s.modalRowName}>{t.all}</Text>
               </TouchableOpacity>
 
               {pickerField === 'marka' && brandPickerResults.map((b) => (
@@ -353,15 +368,16 @@ export default function BanaAracBulScreen() {
               ))}
 
               {pickerField === 'marka' && brandPickerResults.length === 0 && (
-                <Text style={s.modalEmptyText}>Sonuç bulunamadı.</Text>
+                <Text style={s.modalEmptyText}>{t.bulSonucBulunamadi}</Text>
               )}
               {pickerField === 'model' && modelPickerResults.length === 0 && (
-                <Text style={s.modalEmptyText}>Sonuç bulunamadı.</Text>
+                <Text style={s.modalEmptyText}>{t.bulSonucBulunamadi}</Text>
               )}
             </ScrollView>
           </View>
         </View>
       </Modal>
+      <BannerAdSlot />
     </SafeAreaView>
   );
 }

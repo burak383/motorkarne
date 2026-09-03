@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useMembers } from './MembersContext';
 
 export interface SavedVehicle {
   vehicleId: string;
@@ -23,29 +24,24 @@ interface FavoritesContextType {
   clearAll: () => void;
 }
 
-const VEHICLES_KEY = 'motorkarne_saved_vehicles';
-const COMPARISONS_KEY = 'motorkarne_saved_comparisons';
+// Kaydedilenler, cihaza değil HESABA bağlıdır: anahtarların sonuna giriş yapan
+// üyenin id'si eklenir. Böylece (a) giriş yapılmadan önce liste her zaman boş
+// olur ve (b) aynı cihazda farklı hesaplarla giriş yapıldığında her hesap
+// yalnızca kendi kaydettiklerini görür.
+const VEHICLES_KEY_PREFIX = 'motorkarne_saved_vehicles_';
+const COMPARISONS_KEY_PREFIX = 'motorkarne_saved_comparisons_';
 
-const DEFAULT_VEHICLES: SavedVehicle[] = [
-  { vehicleId: 'peugeot-3008', savedAt: '12.06.2024' },
-  { vehicleId: 'vw-golf-8', savedAt: '18.06.2024' },
-];
-
-const DEFAULT_COMPARISONS: SavedComparison[] = [
-  { id: '1', motorA: 'puretech-eb2dt-130', motorB: 'tsi-15-evo', savedAt: '14.06.2024' },
-];
-
-async function loadSaved<T>(key: string, fallback: T): Promise<T> {
+async function loadSaved<T>(key: string): Promise<T[]> {
   try {
     const raw = await AsyncStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed as T;
+      if (Array.isArray(parsed)) return parsed as T[];
     }
   } catch (e) {
-    // Bozuk veri varsa sessizce yok say, varsayılanla devam et
+    // Bozuk veri varsa sessizce yok say, boş listeyle devam et
   }
-  return fallback;
+  return [];
 }
 
 function persist<T>(key: string, value: T) {
@@ -65,27 +61,46 @@ const FavoritesContext = createContext<FavoritesContextType>({
 });
 
 export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [savedVehicles, setSavedVehicles] = useState<SavedVehicle[]>(DEFAULT_VEHICLES);
-  const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>(DEFAULT_COMPARISONS);
+  const { currentUser } = useMembers();
+  const userId = currentUser?.id ?? null;
+
+  const [savedVehicles, setSavedVehicles] = useState<SavedVehicle[]>([]);
+  const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>([]);
 
   useEffect(() => {
+    if (!userId) {
+      // Giriş yapılmamış: kaydedilenler her zaman boştur, diskten bir şey
+      // okunmaz (misafir moduna ait ortak/kalıcı bir liste yok).
+      setSavedVehicles([]);
+      setSavedComparisons([]);
+      return;
+    }
+
+    let cancelled = false;
     (async () => {
       const [vehicles, comparisons] = await Promise.all([
-        loadSaved(VEHICLES_KEY, DEFAULT_VEHICLES),
-        loadSaved(COMPARISONS_KEY, DEFAULT_COMPARISONS),
+        loadSaved<SavedVehicle>(VEHICLES_KEY_PREFIX + userId),
+        loadSaved<SavedComparison>(COMPARISONS_KEY_PREFIX + userId),
       ]);
-      setSavedVehicles(vehicles);
-      setSavedComparisons(comparisons);
+      if (!cancelled) {
+        setSavedVehicles(vehicles);
+        setSavedComparisons(comparisons);
+      }
     })();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const toggleVehicle = (vehicleId: string) => {
+    if (!userId) return; // Kaydetmek için giriş yapılmış olmalı
     setSavedVehicles((prev) => {
       const exists = prev.some((v) => v.vehicleId === vehicleId);
       const next = exists
         ? prev.filter((v) => v.vehicleId !== vehicleId)
         : [...prev, { vehicleId, savedAt: new Date().toLocaleDateString('tr-TR') }];
-      persist(VEHICLES_KEY, next);
+      persist(VEHICLES_KEY_PREFIX + userId, next);
       return next;
     });
   };
@@ -95,6 +110,7 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const addComparison = (motorA: string, motorB: string) => {
+    if (!userId) return; // Kaydetmek için giriş yapılmış olmalı
     const newComp: SavedComparison = {
       id: String(Date.now()),
       motorA,
@@ -103,15 +119,16 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
     setSavedComparisons((prev) => {
       const next = [newComp, ...prev];
-      persist(COMPARISONS_KEY, next);
+      persist(COMPARISONS_KEY_PREFIX + userId, next);
       return next;
     });
   };
 
   const removeComparison = (id: string) => {
+    if (!userId) return;
     setSavedComparisons((prev) => {
       const next = prev.filter((c) => c.id !== id);
-      persist(COMPARISONS_KEY, next);
+      persist(COMPARISONS_KEY_PREFIX + userId, next);
       return next;
     });
   };
@@ -119,8 +136,10 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const clearAll = () => {
     setSavedVehicles([]);
     setSavedComparisons([]);
-    persist(VEHICLES_KEY, []);
-    persist(COMPARISONS_KEY, []);
+    if (userId) {
+      persist(VEHICLES_KEY_PREFIX + userId, []);
+      persist(COMPARISONS_KEY_PREFIX + userId, []);
+    }
   };
 
   return (

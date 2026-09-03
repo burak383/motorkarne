@@ -1,10 +1,34 @@
 import React from 'react';
-import { renderHook, act } from '@testing-library/react-native';
+import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { CatalogProvider, useCatalog } from '../CatalogContext';
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <CatalogProvider>{children}</CatalogProvider>
 );
+
+// CatalogContext, açılışta ve her addMotor/updateMotor/deleteMotor çağrısında gerçek
+// Railway API'sine bir ağ isteği (fetch) atmaya çalışıyor. Testlerde gerçek ağa hiç
+// çıkmamak için fetch'i her zaman "çevrimdışı" gibi davranacak şekilde mock'luyoruz —
+// bu hem testleri hızlandırıyor hem de gerçek sunucunun ayakta olmasına bağımlılığı
+// ortadan kaldırıyor. CatalogContext zaten ağ hatasında sessizce yerel/statik veriye
+// düşecek şekilde tasarlandığı için, bu mock'lama context'in asıl davranışını değiştirmiyor.
+beforeEach(() => {
+  global.fetch = jest.fn(() => Promise.reject(new Error('test ortamında ağ devre dışı'))) as any;
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+// YARIŞ DURUMU NOTU: CatalogProvider mount olduğunda kendi başlangıç bootstrap()'ı
+// (önbellek + ağ denemesi, ikisi de başarısız olunca statik veriye geri dönüş) arka
+// planda çalışmaya başlıyor. Bu bootstrap tamamlanmadan bir mutasyon (addMotor vb.)
+// çağrılırsa, bootstrap'ın geç biten "statik veriye dön" adımı testin eklediği veriyi
+// üzerine yazabiliyor. Bu yüzden her mutasyon testinden önce isLoading'in false
+// olmasını (bootstrap'ın bittiğini) bekliyoruz.
+async function waitForBootstrap(result: { current: ReturnType<typeof useCatalog> }) {
+  await waitFor(() => expect(result.current.isLoading).toBe(false));
+}
 
 describe('CatalogContext', () => {
   it('finds a known seed motor by id', () => {
@@ -33,12 +57,13 @@ describe('CatalogContext', () => {
     expect(result.current.searchMotors('').length).toBe(result.current.motors.length);
   });
 
-  it('rejects adding a motor with a duplicate id', () => {
+  it('rejects adding a motor with a duplicate id', async () => {
     const { result } = renderHook(() => useCatalog(), { wrapper });
+    await waitForBootstrap(result);
 
     let response: { success: boolean; error?: string } | undefined;
-    act(() => {
-      response = result.current.addMotor({
+    await act(async () => {
+      response = await result.current.addMotor({
         id: 'tdi-16-ea288',
         name: 'Çakışan Motor',
         code: 'X',
@@ -59,11 +84,12 @@ describe('CatalogContext', () => {
     expect(response?.success).toBe(false);
   });
 
-  it('adds a new motor with a unique id and makes it searchable', () => {
+  it('adds a new motor with a unique id and makes it searchable', async () => {
     const { result } = renderHook(() => useCatalog(), { wrapper });
+    await waitForBootstrap(result);
 
-    act(() => {
-      result.current.addMotor({
+    await act(async () => {
+      await result.current.addMotor({
         id: 'test-motor-unique-1',
         name: 'Test Motor 1.0',
         code: 'TEST1',
@@ -85,11 +111,12 @@ describe('CatalogContext', () => {
     expect(result.current.searchMotors('TestBrand').length).toBe(1);
   });
 
-  it('updates an existing motor', () => {
+  it('updates an existing motor', async () => {
     const { result } = renderHook(() => useCatalog(), { wrapper });
+    await waitForBootstrap(result);
 
-    act(() => {
-      result.current.addMotor({
+    await act(async () => {
+      await result.current.addMotor({
         id: 'test-motor-update-1',
         name: 'Eski İsim',
         code: 'U1',
@@ -107,18 +134,19 @@ describe('CatalogContext', () => {
       });
     });
 
-    act(() => {
-      result.current.updateMotor('test-motor-update-1', { name: 'Yeni İsim' });
+    await act(async () => {
+      await result.current.updateMotor('test-motor-update-1', { name: 'Yeni İsim' });
     });
 
     expect(result.current.getMotorById('test-motor-update-1')?.name).toBe('Yeni İsim');
   });
 
-  it('deletes a motor', () => {
+  it('deletes a motor', async () => {
     const { result } = renderHook(() => useCatalog(), { wrapper });
+    await waitForBootstrap(result);
 
-    act(() => {
-      result.current.addMotor({
+    await act(async () => {
+      await result.current.addMotor({
         id: 'test-motor-delete-1',
         name: 'Silinecek Motor',
         code: 'D1',
@@ -137,8 +165,8 @@ describe('CatalogContext', () => {
     });
     expect(result.current.getMotorById('test-motor-delete-1')).toBeDefined();
 
-    act(() => {
-      result.current.deleteMotor('test-motor-delete-1');
+    await act(async () => {
+      await result.current.deleteMotor('test-motor-delete-1');
     });
     expect(result.current.getMotorById('test-motor-delete-1')).toBeUndefined();
   });

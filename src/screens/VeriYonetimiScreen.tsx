@@ -1,10 +1,12 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, SafeAreaView, NativeSyntheticEvent, NativeScrollEvent,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
+import { notifyThenProceed } from '../utils/confirm';
 import {
   ArrowLeft, Factory, Settings2, CarFront, Upload,
   CheckCircle2, AlertCircle, FileText, Link2, Save, ArrowUp, ShieldAlert,
@@ -107,9 +109,11 @@ export default function VeriYonetimiScreen() {
     };
     setRecentEntries((prev) => [newEntry, ...prev]);
     resetForm();
-    Alert.alert('Kaydedildi', `${newEntry.name} onay kuyruğuna eklendi.`, [
-      { text: 'Tamam', onPress: () => nav.navigate('AdminPaneli') },
-    ]);
+    notifyThenProceed(
+      'Önizleme eklendi',
+      `${newEntry.name} bu listeye eklendi, ancak hiçbir yere kalıcı olarak kaydedilmedi. Kalıcı eklemek için motorkarne-admin panelini kullanın.`,
+      () => nav.navigate('AdminPaneli')
+    );
   };
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -200,6 +204,19 @@ export default function VeriYonetimiScreen() {
               <Text style={s.eyebrow}>{t.dataEntryEyebrow}</Text>
               <Text style={s.title}>{t.dataManagementTitle}</Text>
             </View>
+          </View>
+
+          {/* UYARI: Bu formdaki "Kaydet" işlemi hiçbir yere (ne cihaz depolamasına ne
+              backend'e) kalıcı yazmıyor — yalnızca bu ekranın altındaki "Son Eklenenler"
+              listesini bu oturum için güncelliyor. Kalıcı katalog değişikliği için
+              motorkarne-admin (harici masaüstü panel) kullanılmalı. */}
+          <View style={{ marginHorizontal: 20, marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.accent, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+            <ShieldAlert size={18} color={colors.accent} style={{ marginTop: 1 }} />
+            <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colors.mutedForeground }}>
+              Buradaki "Kaydet" yalnızca bir önizleme oluşturur; hiçbir yere kalıcı olarak
+              yazılmaz ve uygulamayı kapattığında kaybolur. Kalıcı katalog değişikliği için
+              motorkarne-admin panelini kullanın.
+            </Text>
           </View>
 
           {/* Stepper */}

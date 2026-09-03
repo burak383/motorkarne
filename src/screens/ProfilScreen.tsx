@@ -9,11 +9,12 @@ import {
   TextInput,
   Image,
   Alert,
-  SafeAreaView,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Share,
+  Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
@@ -39,13 +40,18 @@ import {
   Trash2,
   Info,
   Download,
+  KeyRound,
+  Crown,
 } from 'lucide-react-native';
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useMembers } from '../state/MembersContext';
+import { usePurchases } from '../state/PurchasesContext';
 import { useFavorites } from '../state/FavoritesContext';
 import { useReviews } from '../state/ReviewsContext';
+import { confirmAction } from '../utils/confirm';
+import RewardedAdPrompt from '../components/RewardedAdPrompt';
 
 type Nav = NativeStackNavigationProp<any>;
 
@@ -55,13 +61,39 @@ export default function ProfilScreen() {
   const nav = useNavigation<Nav>();
   const { mode, toggleTheme, themeColors: colors } = useTheme();
   const { language, toggleLanguage, t } = useLanguage();
-  const { currentUser, updateCurrentUser, logout, deleteAccount } = useMembers();
+  const { currentUser, updateCurrentUser, changePassword, logout, deleteAccount } = useMembers();
+  const { restorePurchases } = usePurchases();
   const { savedVehicles, savedComparisons } = useFavorites();
   const { reviews } = useReviews();
   const s = useMemo(() => getStyles(colors), [colors]);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+
+  const closePasswordModal = () => {
+    setPasswordModalOpen(false);
+    setCurrentPasswordInput('');
+    setNewPasswordInput('');
+    setConfirmPasswordInput('');
+  };
+
+  const handleChangePassword = () => {
+    if (newPasswordInput !== confirmPasswordInput) {
+      Alert.alert('MotorKarne', 'Yeni şifreler birbiriyle eşleşmiyor.');
+      return;
+    }
+    const result = changePassword(currentPasswordInput, newPasswordInput);
+    if (!result.success) {
+      Alert.alert('MotorKarne', result.error ?? 'Şifre değiştirilemedi.');
+      return;
+    }
+    Alert.alert('MotorKarne', 'Şifreniz başarıyla değiştirildi.');
+    closePasswordModal();
+  };
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     setShowScrollTop(e.nativeEvent.contentOffset.y > 200);
@@ -111,35 +143,36 @@ export default function ProfilScreen() {
     }
   };
 
+  const handleRestorePurchases = async () => {
+    const result = await restorePurchases();
+    if (result.success) {
+      Alert.alert('MotorKarne', 'Aboneliğiniz başarıyla geri yüklendi.');
+    } else {
+      Alert.alert('MotorKarne', result.error ?? 'Geri yüklenecek bir satın alma bulunamadı.');
+    }
+  };
+
   const handleLogout = () => {
-    Alert.alert(t.logout, language === 'tr' ? 'Çıkış yapmak istediğinize emin misiniz?' : 'Are you sure you want to log out?', [
-      { text: t.cancel, style: 'cancel' },
-      {
-        text: t.logout,
-        style: 'destructive',
-        onPress: () => {
-          logout();
-          setIsEditing(false);
-        },
+    confirmAction(
+      t.logout,
+      language === 'tr' ? 'Çıkış yapmak istediğinize emin misiniz?' : 'Are you sure you want to log out?',
+      () => {
+        logout();
+        setIsEditing(false);
       },
-    ]);
+      { confirmText: t.logout, cancelText: t.cancel }
+    );
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
+    confirmAction(
       'Hesabı Sil',
       'Hesabınız ve tüm bilgileriniz kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam etmek istediğinize emin misiniz?',
-      [
-        { text: t.cancel, style: 'cancel' },
-        {
-          text: 'Hesabımı Sil',
-          style: 'destructive',
-          onPress: () => {
-            deleteAccount();
-            setIsEditing(false);
-          },
-        },
-      ]
+      () => {
+        deleteAccount();
+        setIsEditing(false);
+      },
+      { confirmText: 'Hesabımı Sil', cancelText: t.cancel }
     );
   };
 
@@ -228,6 +261,8 @@ export default function ProfilScreen() {
                 <Text style={s.profileName}>{currentUser.fullName}</Text>
                 <Text style={s.profileSub}>{mode === 'dark' ? t.darkModeActive : t.lightModeActive}</Text>
               </View>
+
+              <RewardedAdPrompt />
 
               {/* Form Kartı */}
               <View style={s.formCard}>
@@ -327,12 +362,25 @@ export default function ProfilScreen() {
               <>
                 <TouchableOpacity
                   style={s.menuRow}
+                  onPress={() => setPasswordModalOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Şifre değiştir"
+                >
+                  <KeyRound size={18} color={colors.primary} />
+                  <Text style={s.menuText}>Şifre Değiştir</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.menuRow}
                   onPress={handleExportData}
                   accessibilityRole="button"
                   accessibilityLabel="Verilerimi dışa aktar"
                 >
                   <Download size={18} color={colors.primary} />
                   <Text style={s.menuText}>Verilerimi Dışa Aktar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.menuRow} onPress={handleRestorePurchases}>
+                  <Crown size={18} color={colors.primary} />
+                  <Text style={s.menuText}>Satın Alımları Geri Yükle</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.dangerMenuRow} onPress={handleLogout}>
                   <LogOut size={18} color={colors.destructive} />
@@ -370,6 +418,53 @@ export default function ProfilScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      <Modal visible={passwordModalOpen} animationType="slide" transparent onRequestClose={closePasswordModal}>
+        <View style={s.pwModalOverlay}>
+          <View style={s.pwModalSheet}>
+            <View style={s.pwModalHeader}>
+              <Text style={s.pwModalTitle}>Şifre Değiştir</Text>
+              <TouchableOpacity style={s.pwModalCloseBtn} onPress={closePasswordModal}>
+                <X size={18} color={colors.cardForeground} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={s.pwLabel}>Mevcut Şifre</Text>
+            <TextInput
+              style={s.pwInput}
+              value={currentPasswordInput}
+              onChangeText={setCurrentPasswordInput}
+              secureTextEntry
+              placeholder="Mevcut şifreniz"
+              placeholderTextColor={colors.mutedForeground}
+            />
+
+            <Text style={[s.pwLabel, { marginTop: 14 }]}>Yeni Şifre</Text>
+            <TextInput
+              style={s.pwInput}
+              value={newPasswordInput}
+              onChangeText={setNewPasswordInput}
+              secureTextEntry
+              placeholder="En az 6 karakter"
+              placeholderTextColor={colors.mutedForeground}
+            />
+
+            <Text style={[s.pwLabel, { marginTop: 14 }]}>Yeni Şifre (Tekrar)</Text>
+            <TextInput
+              style={s.pwInput}
+              value={confirmPasswordInput}
+              onChangeText={setConfirmPasswordInput}
+              secureTextEntry
+              placeholder="Yeni şifrenizi tekrar girin"
+              placeholderTextColor={colors.mutedForeground}
+            />
+
+            <TouchableOpacity style={s.pwSaveBtn} onPress={handleChangePassword}>
+              <Text style={s.pwSaveBtnText}>Şifreyi Güncelle</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -570,4 +665,27 @@ const getStyles = (colors: any) =>
       shadowRadius: 3.84,
       zIndex: 99,
     },
+    pwModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    pwModalSheet: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+    },
+    pwModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+    pwModalTitle: { fontFamily: fonts.heading.bold, fontSize: 16, color: colors.foreground },
+    pwModalCloseBtn: {
+      width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: colors.border,
+      backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center',
+    },
+    pwLabel: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.mutedForeground },
+    pwInput: {
+      marginTop: 6, height: 46, borderRadius: radius, borderWidth: 1, borderColor: colors.border,
+      backgroundColor: colors.input, paddingHorizontal: 14, fontSize: 14, color: colors.foreground,
+    },
+    pwSaveBtn: {
+      marginTop: 20, borderRadius: radius, backgroundColor: colors.primary,
+      paddingVertical: 14, alignItems: 'center',
+    },
+    pwSaveBtnText: { fontSize: 14, fontFamily: fonts.body.bold, color: colors.primaryForeground },
   });

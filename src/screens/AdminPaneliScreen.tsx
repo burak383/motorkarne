@@ -8,13 +8,14 @@ import {
   TextInput,
   Modal,
   Alert,
-  SafeAreaView,
   Image,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import { confirmAction } from '../utils/confirm';
 import {
   ArrowLeft,
   Plus,
@@ -182,7 +183,7 @@ export default function AdminPaneliScreen() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formName.trim()) {
       Alert.alert('Hata', 'Lütfen motor / araç adını girin.');
       return;
@@ -214,12 +215,16 @@ export default function AdminPaneliScreen() {
     };
 
     const result = editingId
-      ? updateMotor(editingId, updatedMotorData)
-      : addMotor(updatedMotorData);
+      ? await updateMotor(editingId, updatedMotorData)
+      : await addMotor(updatedMotorData);
 
     if (!result.success) {
       Alert.alert('Hata', result.error ?? 'Kayıt işlemi başarısız oldu.');
       return;
+    }
+    if (result.error) {
+      // Kayıt cihazda başarılı oldu ama sunucuyla senkronize edilemedi (çevrimdışı gibi durumlar)
+      Alert.alert('Kaydedildi', result.error);
     }
 
     if (editingId) {
@@ -243,16 +248,9 @@ export default function AdminPaneliScreen() {
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert(t.deleteBtn, t.deleteConfirm, [
-      { text: t.cancel, style: 'cancel' },
-      {
-        text: t.deleteBtn,
-        style: 'destructive',
-        onPress: () => {
-          deleteMotor(id);
-        },
-      },
-    ]);
+    confirmAction(t.deleteBtn, t.deleteConfirm, () => {
+      deleteMotor(id);
+    }, { confirmText: t.deleteBtn, cancelText: t.cancel });
   };
 
   const filteredMotors = motorList.filter((m) =>
@@ -328,6 +326,20 @@ export default function AdminPaneliScreen() {
               <Plus size={18} color={colors.primaryForeground} />
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* UYARI: Bu ekrandaki değişiklikler kalıcı DEĞİL. Gerçek katalog artık TiDB
+            tabanlı bir sunucudan geliyor (bkz. src/state/CatalogContext.tsx); bu ekran
+            sadece cihaz-yerel, geçici bir görünüm sunuyor ve bir sonraki ağ senkronizasyonunda
+            (uygulama arka plandan öne geldiğinde) sunucudaki veriyle üzerine yazılır.
+            Kalıcı değişiklik için harici admin panelini (motorkarne-admin) kullanın. */}
+        <View style={{ marginHorizontal: 20, marginTop: 12, padding: 12, borderRadius: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.accent, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+          <ShieldAlert size={18} color={colors.accent} style={{ marginTop: 1 }} />
+          <Text style={{ flex: 1, fontSize: 12, lineHeight: 17, color: colors.mutedForeground }}>
+            Bu ekrandaki değişiklikler yalnızca bu cihazda ve geçicidir — gerçek katalog artık
+            sunucudan geliyor ve bir sonraki senkronizasyonda buradaki değişiklikler kaybolur.
+            Kalıcı değişiklik için harici admin panelini kullanın.
+          </Text>
         </View>
 
         {/* Arama Barı */}

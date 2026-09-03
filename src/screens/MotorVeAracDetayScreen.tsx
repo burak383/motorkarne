@@ -1,31 +1,37 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView, NativeSyntheticEvent, NativeScrollEvent, Share, TextInput, Linking,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, NativeSyntheticEvent, NativeScrollEvent, Share, TextInput, Linking, Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
+import { confirmAction } from '../utils/confirm';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  ArrowLeft, Share2, Bookmark, ShieldCheck, Plus, Minus, Check, X,
-  AlertTriangle, Wrench, Info, ChevronRight, CheckCircle, ArrowUp, Star, Tag, ExternalLink,
+  ArrowLeft, Share2, Bookmark, ShieldCheck, Plus, Minus, Check, X, Image as ImageIcon,
+  AlertTriangle, Info, ArrowUp, Star, Tag, ExternalLink, MapPin,
 } from 'lucide-react-native';
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ScoreRing } from '../components/ScoreRing';
 import RemoteImage from '../components/RemoteImage';
-import { getVehiclesByMotor } from '../data/catalog';
+import { useVehicles } from '../state/VehicleContext';
 import { useCatalog } from '../state/CatalogContext';
 import { getRiskInfo } from '../utils/risk';
 import { buildListingSearchUrls } from '../utils/listings';
+import { buildNearbyServiceUrl, buildIssueServiceUrl } from '../utils/nearby';
 import { ENGINE_BAY_IMAGE as ENGINE_BAY, TRANSMISSION_IMAGE, getVehicleImage } from '../data/images';
 import { useFavorites } from '../state/FavoritesContext';
 import { useReviews } from '../state/ReviewsContext';
 import { useNotifications } from '../state/NotificationsContext';
+import { useUsageStats } from '../state/UsageStatsContext';
 import { useMembers } from '../state/MembersContext';
 
 type Nav = NativeStackNavigationProp<any>;
 
 export default function MotorVeAracDetayScreen() {
+  const { getVehiclesByMotor } = useVehicles();
   const nav = useNavigation<Nav>();
   const route = useRoute();
   const [tab, setTab] = useState(0);
@@ -52,6 +58,12 @@ export default function MotorVeAracDetayScreen() {
 
   const params = route.params as { motorId?: string } | undefined;
   const motorId = params?.motorId ?? 'puretech-eb2dt-130';
+  const { recordView } = useUsageStats();
+
+  useEffect(() => {
+    recordView(motorId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [motorId]);
 
   const { getMotorById } = useCatalog();
   const motor = getMotorById(motorId);
@@ -65,13 +77,31 @@ export default function MotorVeAracDetayScreen() {
   const averageRating = getAverageRating(motorId);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  const [reviewPhotoUri, setReviewPhotoUri] = useState<string | null>(null);
+
+  const handlePickReviewPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('MotorKarne', 'Fotoğraf ekleyebilmek için galeri izni gerekiyor.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.6,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      setReviewPhotoUri(result.assets[0].uri);
+    }
+  };
 
   const handleSubmitReview = () => {
     if (!currentUser) {
-      Alert.alert('MotorKarne', 'Yorum yapabilmek için giriş yapmanız gerekir.', [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Giriş Yap', onPress: () => nav.navigate('GirisYap') },
-      ]);
+      confirmAction(
+        'MotorKarne',
+        'Yorum yapabilmek için giriş yapmanız gerekir.',
+        () => nav.navigate('GirisYap'),
+        { confirmText: 'Giriş Yap', cancelText: 'Vazgeç' }
+      );
       return;
     }
     const result = addReview({
@@ -80,6 +110,7 @@ export default function MotorVeAracDetayScreen() {
       userName: currentUser.fullName,
       rating: reviewRating,
       comment: reviewComment,
+      photoUri: reviewPhotoUri ?? undefined,
     });
     if (!result.success) {
       Alert.alert('MotorKarne', result.error ?? 'Yorum eklenemedi.');
@@ -97,6 +128,7 @@ export default function MotorVeAracDetayScreen() {
 
     setReviewComment('');
     setReviewRating(5);
+    setReviewPhotoUri(null);
   };
 
   const handleShare = async () => {
@@ -135,7 +167,22 @@ export default function MotorVeAracDetayScreen() {
                 style={s.iconBtn}
                 accessibilityRole="button"
                 accessibilityLabel={compatibleVehicle?.id && isVehicleSaved(compatibleVehicle.id) ? 'Listeden kaldır' : 'Garaja kaydet'}
-                onPress={() => { if (compatibleVehicle?.id) { toggleVehicle(compatibleVehicle.id); Alert.alert('MotorKarne', isVehicleSaved(compatibleVehicle.id) ? 'Listeden kaldırıldı.' : 'Araç garajınıza kaydedildi!'); } }}>
+                onPress={() => {
+                  if (!currentUser) {
+                    confirmAction(
+                      'MotorKarne',
+                      'Araçları garajınıza kaydedebilmek için giriş yapmanız gerekir.',
+                      () => nav.navigate('GirisYap'),
+                      { confirmText: 'Giriş Yap', cancelText: 'Vazgeç' }
+                    );
+                    return;
+                  }
+                  if (compatibleVehicle?.id) {
+                    const wasSaved = isVehicleSaved(compatibleVehicle.id);
+                    toggleVehicle(compatibleVehicle.id);
+                    Alert.alert('MotorKarne', wasSaved ? 'Listeden kaldırıldı.' : 'Araç garajınıza kaydedildi!');
+                  }
+                }}>
                 <Bookmark size={18} color={compatibleVehicle?.id && isVehicleSaved(compatibleVehicle.id) ? colors.primary : colors.cardForeground} />
               </TouchableOpacity>
             </View>
@@ -165,7 +212,7 @@ export default function MotorVeAracDetayScreen() {
                 <Text style={s.heroBadgeText}>{motor?.fuel}</Text>
               </View>
               <View style={s.heroCode}>
-                <Text style={s.heroCodeLabel}>Motor kodu</Text>
+                <Text style={s.heroCodeLabel}>{t.motDetayMotorKodu}</Text>
                 <Text style={s.heroCodeValue}>{motor?.code}</Text>
               </View>
               <View style={s.heroScoreRow}>
@@ -182,15 +229,15 @@ export default function MotorVeAracDetayScreen() {
           <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
             <View style={s.specGrid}>
               <View style={s.specBox}>
-                <Text style={s.specLabel}>Güç</Text>
+                <Text style={s.specLabel}>{t.power}</Text>
                 <Text style={s.specValue}>{motor?.power}</Text>
               </View>
               <View style={s.specBox}>
-                <Text style={s.specLabel}>Yakıt</Text>
+                <Text style={s.specLabel}>{t.fuel}</Text>
                 <Text style={s.specValue}>{motor?.fuel}</Text>
               </View>
               <View style={s.specBox}>
-                <Text style={s.specLabel}>Şanzıman</Text>
+                <Text style={s.specLabel}>{t.transmission}</Text>
                 <Text style={s.specValue}>{motor?.transmission}</Text>
               </View>
             </View>
@@ -204,7 +251,7 @@ export default function MotorVeAracDetayScreen() {
                   <ShieldCheck size={20} color={mainColor} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.quickTag, { color: mainColor }]}>Hızlı Karar Notu</Text>
+                  <Text style={[s.quickTag, { color: mainColor }]}>{t.motDetayHizliKararNotu}</Text>
                   <Text style={s.quickText}>{motor?.note}</Text>
                 </View>
               </View>
@@ -267,7 +314,7 @@ export default function MotorVeAracDetayScreen() {
             <View style={{ paddingHorizontal: 20, marginTop: 28 }}>
               <View style={s.rowBetween}>
                 <View>
-                  <Text style={s.sectionTag}>Öncelikli kontrol</Text>
+                  <Text style={s.sectionTag}>{t.motDetayOncelikliKontrol}</Text>
                   <Text style={s.sectionTitleLg}>{t.chronicIssues}</Text>
                 </View>
                 <View style={[s.countBadge, { backgroundColor: rgba(colors.destructive, 0.15) }]}>
@@ -292,10 +339,17 @@ export default function MotorVeAracDetayScreen() {
                   </View>
                   {c.solution && (
                     <View style={s.solutionBox}>
-                      <Text style={s.solutionLabel}>Önerilen çözüm</Text>
+                      <Text style={s.solutionLabel}>{t.motDetayOnerilenCozum}</Text>
                       <Text style={s.solutionText}>{c.solution}</Text>
                     </View>
                   )}
+                  <TouchableOpacity
+                    style={s.findMechanicBtn}
+                    onPress={() => Linking.openURL(buildIssueServiceUrl(motor.brands[0], c.title))}
+                  >
+                    <MapPin size={13} color={colors.primary} />
+                    <Text style={s.findMechanicBtnText}>{t.motDetayUstaBul}</Text>
+                  </TouchableOpacity>
                 </View>
               ))}
             </View>
@@ -303,7 +357,7 @@ export default function MotorVeAracDetayScreen() {
           {tab === 1 && (!motor?.chronic || motor.chronic.length === 0) && (
             <View style={{ paddingHorizontal: 20, marginTop: 28, alignItems: 'center' }}>
               <ShieldCheck size={28} color={colors.success} style={{ marginBottom: 8 }} />
-              <Text style={s.emptyTabText}>Bu motor için bilinen kronik bir sorun kaydedilmemiş.</Text>
+              <Text style={s.emptyTabText}>{t.motDetayKronikYok}</Text>
             </View>
           )}
 
@@ -312,15 +366,15 @@ export default function MotorVeAracDetayScreen() {
             <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
               <View style={s.specGrid}>
                 <View style={s.specBox}>
-                  <Text style={s.specLabel}>Şanzıman tipi</Text>
+                  <Text style={s.specLabel}>{t.motDetaySanzimanTipi}</Text>
                   <Text style={s.specValue}>{motor?.transmission}</Text>
                 </View>
                 <View style={s.specBox}>
-                  <Text style={s.specLabel}>Güç</Text>
+                  <Text style={s.specLabel}>{t.power}</Text>
                   <Text style={s.specValue}>{motor?.power}</Text>
                 </View>
                 <View style={s.specBox}>
-                  <Text style={s.specLabel}>Tork</Text>
+                  <Text style={s.specLabel}>{t.karTork}</Text>
                   <Text style={s.specValue}>{motor?.torque ?? '—'}</Text>
                 </View>
               </View>
@@ -343,7 +397,7 @@ export default function MotorVeAracDetayScreen() {
               )}
 
               <View style={s.reviewFormBox}>
-                <Text style={s.reviewFormLabel}>Puanınız</Text>
+                <Text style={s.reviewFormLabel}>{t.motDetayPuaniniz}</Text>
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <TouchableOpacity key={n} onPress={() => setReviewRating(n)}>
@@ -357,21 +411,34 @@ export default function MotorVeAracDetayScreen() {
                 </View>
                 <TextInput
                   style={s.reviewInput}
-                  placeholder="Bu motorla ilgili deneyiminizi paylaşın..."
+                  placeholder={t.motDetayYorumPlaceholder}
                   placeholderTextColor={colors.mutedForeground}
                   value={reviewComment}
                   onChangeText={setReviewComment}
                   multiline
                 />
+                {reviewPhotoUri ? (
+                  <View style={s.reviewPhotoPreviewBox}>
+                    <Image source={{ uri: reviewPhotoUri }} style={s.reviewPhotoPreview} />
+                    <TouchableOpacity style={s.reviewPhotoRemoveBtn} onPress={() => setReviewPhotoUri(null)}>
+                      <X size={14} color={colors.primaryForeground} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={s.reviewAddPhotoBtn} onPress={handlePickReviewPhoto}>
+                    <ImageIcon size={15} color={colors.primary} />
+                    <Text style={s.reviewAddPhotoBtnText}>Fotoğraf Ekle</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity style={s.reviewSubmitBtn} onPress={handleSubmitReview}>
-                  <Text style={s.reviewSubmitBtnText}>Yorumu Gönder</Text>
+                  <Text style={s.reviewSubmitBtnText}>{t.motDetayYorumuGonder}</Text>
                 </TouchableOpacity>
               </View>
 
               {motorReviews.length === 0 ? (
                 <View style={{ alignItems: 'center', marginTop: 24 }}>
                   <Info size={28} color={colors.mutedForeground} style={{ marginBottom: 8 }} />
-                  <Text style={s.emptyTabText}>Bu motor için henüz kullanıcı yorumu bulunmuyor.</Text>
+                  <Text style={s.emptyTabText}>{t.motDetayYorumYok}</Text>
                 </View>
               ) : (
                 <View style={{ gap: 10, marginTop: 20 }}>
@@ -391,6 +458,9 @@ export default function MotorVeAracDetayScreen() {
                         </View>
                       </View>
                       <Text style={s.reviewComment}>{r.comment}</Text>
+                      {r.photoUri && (
+                        <Image source={{ uri: r.photoUri }} style={s.reviewCardPhoto} resizeMode="cover" />
+                      )}
                       <Text style={s.reviewDate}>{r.createdAt}</Text>
                     </View>
                   ))}
@@ -423,9 +493,9 @@ export default function MotorVeAracDetayScreen() {
                     <Tag size={18} color={colors.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.listingTitle}>Bu motor kaç paraya satılıyor?</Text>
+                    <Text style={s.listingTitle}>{t.motDetaySatisSorusu}</Text>
                     <Text style={s.listingDesc}>
-                      Güncel 2. el ilanlarını arabam.com ve sahibinden.com üzerinde canlı görüntüleyin.
+                      {t.motDetayIlanAciklama}
                     </Text>
                   </View>
                 </View>
@@ -434,14 +504,14 @@ export default function MotorVeAracDetayScreen() {
                     style={s.listingBtn}
                     onPress={() => Linking.openURL(buildListingSearchUrls(compatibleVehicle).arabam)}
                   >
-                    <Text style={s.listingBtnText}>arabam.com'da gör</Text>
+                    <Text style={s.listingBtnText}>{t.motDetayArabamGor}</Text>
                     <ExternalLink size={14} color={colors.primary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={s.listingBtn}
                     onPress={() => Linking.openURL(buildListingSearchUrls(compatibleVehicle).sahibinden)}
                   >
-                    <Text style={s.listingBtnText}>sahibinden.com'da gör</Text>
+                    <Text style={s.listingBtnText}>{t.motDetaySahibindenGor}</Text>
                     <ExternalLink size={14} color={colors.primary} />
                   </TouchableOpacity>
                 </View>
@@ -449,10 +519,33 @@ export default function MotorVeAracDetayScreen() {
             </View>
           )}
 
+          {/* Yakındaki Yetkili Servisler */}
+          {motor && (
+            <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
+              <TouchableOpacity
+                style={s.listingCard}
+                onPress={() => Linking.openURL(buildNearbyServiceUrl(motor.brands[0]))}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={s.listingIconBox}>
+                    <MapPin size={18} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.listingTitle}>{t.motDetayYakinServisler}</Text>
+                    <Text style={s.listingDesc}>
+                      {motor.brands[0]} {t.motDetayYakinServislerAciklama}
+                    </Text>
+                  </View>
+                  <ExternalLink size={16} color={colors.mutedForeground} />
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Engine bay */}
           <View style={{ paddingHorizontal: 20, marginTop: 28 }}>
             <View>
-              <Text style={s.sectionTag}>Teknik rehber</Text>
+              <Text style={s.sectionTag}>{t.motDetayTeknikRehber}</Text>
               <Text style={s.sectionTitleLg}>{t.engineStructureTitle}</Text>
             </View>
             <View style={s.engineBayBox}>
@@ -531,6 +624,11 @@ const getStyles = (colors: any) => StyleSheet.create({
   solutionBox: { borderRadius: 8, backgroundColor: colors.muted, padding: 12, marginTop: 16 },
   solutionLabel: { fontSize: 10, fontFamily: fonts.body.bold, color: colors.mutedForeground, letterSpacing: 1, textTransform: 'uppercase' },
   solutionText: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.foreground, marginTop: 4, lineHeight: 20 },
+  findMechanicBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    marginTop: 10, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border,
+  },
+  findMechanicBtnText: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.primary },
   engineBayBox: { height: 200, borderRadius: radius, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, overflow: 'hidden', marginTop: 12 },
   engineBayImage: { width: '100%', height: '100%' },
   compCard: { padding: 12, borderRadius: radius, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
@@ -560,6 +658,19 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   reviewSubmitBtn: { marginTop: 12, borderRadius: radius, backgroundColor: colors.primary, paddingVertical: 12, alignItems: 'center' },
   reviewSubmitBtnText: { fontSize: 13, fontFamily: fonts.body.bold, color: colors.primaryForeground },
+  reviewAddPhotoBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    marginTop: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border,
+    borderStyle: 'dashed', paddingVertical: 10,
+  },
+  reviewAddPhotoBtnText: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.primary },
+  reviewPhotoPreviewBox: { marginTop: 10, position: 'relative', alignSelf: 'flex-start' },
+  reviewPhotoPreview: { width: 80, height: 80, borderRadius: 8 },
+  reviewPhotoRemoveBtn: {
+    position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: colors.destructive, alignItems: 'center', justifyContent: 'center',
+  },
+  reviewCardPhoto: { width: '100%', height: 160, borderRadius: 8, marginTop: 8 },
   reviewCard: { borderRadius: radius, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 14 },
   reviewUserName: { fontSize: 13, fontFamily: fonts.body.bold, color: colors.foreground },
   reviewComment: { fontSize: 12, color: colors.foreground, marginTop: 6, lineHeight: 18 },

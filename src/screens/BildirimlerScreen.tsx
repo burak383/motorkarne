@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Bell, BellOff } from 'lucide-react-native';
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
 import { useNotifications } from '../state/NotificationsContext';
+import { ensureNotificationPermission } from '../utils/pushNotifications';
 
 type Nav = NativeStackNavigationProp<any>;
 
@@ -17,6 +19,9 @@ export default function BildirimlerScreen() {
 
   useEffect(() => {
     markAllRead();
+    ensureNotificationPermission().catch(() => {
+      // yok say
+    });
     // Ekran açıldığında tüm bildirimleri okunmuş olarak işaretle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

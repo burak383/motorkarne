@@ -34,7 +34,9 @@ export const DEFAULT_PRICING: PricingConfig = {
 };
 
 function classifyFuelCategory(fuel: string): 'benzin' | 'dizel' | 'hibrit' | 'elektrik' | 'lpg' {
-  const f = fuel.toLowerCase();
+  // NOT: aynı Türkçe 'İ' sorunu burada da geçerli, bkz. utils/maintenance.ts'teki
+  // aynı isimli fonksiyondaki açıklama.
+  const f = fuel.replace(/İ/g, 'I').toLowerCase();
   if (f.includes('elektrik')) return 'elektrik';
   if (f.includes('lpg')) return 'lpg';
   if (f.includes('hibrit') || f.includes('hybrid')) return 'hibrit';

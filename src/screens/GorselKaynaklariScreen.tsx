@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, ExternalLink, ImageIcon } from 'lucide-react-native';
@@ -11,7 +12,7 @@ type Nav = NativeStackNavigationProp<any>;
 const CREDITS: { category: string; note: string }[] = [
   {
     category: 'Marka logoları',
-    note: 'Peugeot, Citroën, Fiat, Volkswagen, Škoda, Renault, Dacia, Toyota, Honda, Hyundai, Kia, Ford, BMW, Mercedes-Benz, Chery, TOGG ve BYD logoları Wikimedia Commons üzerinden alınmıştır.',
+    note: 'Peugeot, Citroën, Fiat, Volkswagen, Škoda, Renault, Dacia, Toyota, Honda, Hyundai, Kia, Ford, BMW, Mercedes-Benz, Chery, TOGG, BYD, Opel, Nissan, Audi, Mazda, MG, Suzuki, Volvo, Tesla, Alfa Romeo, Seat, Mini, DS, Lexus, Land Rover, Jeep ve Cupra logoları Wikimedia Commons üzerinden alınmıştır.',
   },
   {
     category: 'Motor bölmesi fotoğrafı',

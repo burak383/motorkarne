@@ -14,6 +14,37 @@ npx expo start
 
 iOS simülatörü, Android emülatörü veya Expo Go uygulamasıyla açabilirsiniz.
 
+> **Not:** `package-lock.json` bilerek repoya eklenmedi (silindi) — projede daha önce
+> `package.json` Expo SDK 54'e güncellenmiş ama lockfile hâlâ eski SDK 50 sürümlerine
+> (`expo@50.0.21`, `react@18.2.0`, `react-native@0.73.6`) kilitliymiş. Bu tutarsızlık,
+> `npm install` sırasında `ERESOLVE` hatasına yol açıyordu. Lockfile olmadan yapılan ilk
+> `npm install`, güncel `package.json`'a göre temiz bir lockfile oluşturacak. Eğer yine de
+> bir `ERESOLVE` hatası alırsan (bazı üçüncü parti paketlerin peer dependency aralıkları
+> geride kalmış olabilir), önce hatada hangi paketin çakıştığını oku; gerçekten zararsız bir
+> uyarıysa en son çare olarak `npm install --legacy-peer-deps` kullanabilirsin, ama bunu
+> ilk tercih yapma.
+
+## Ortam Değişkenleri (.env)
+
+`.env.example` dosyasını kopyalayıp `.env` olarak kaydedin ve gerçek değerleri girin
+(bu dosya `.gitignore`'da olduğu için repoya commit edilmez):
+
+```bash
+cp .env.example .env
+```
+
+Şu an tek değişken **Motor Kodu Tara** (OCR) özelliği için gereken Google Cloud Vision
+API anahtarı (`EXPO_PUBLIC_GOOGLE_VISION_API_KEY`) — anahtar girilmezse özellik devre
+dışı kalır, uygulama çökmez. Anahtar hakkında güvenlik notları için `src/utils/ocr.ts`
+dosyasının başındaki yorumlara bakın.
+
+**EAS Build ile bulut derlemesi alırken** yerel `.env` dosyanız otomatik olarak
+kullanılmaz — değişkeni EAS'e de tanıtmanız gerekir:
+
+```bash
+eas secret:create --scope project --name EXPO_PUBLIC_GOOGLE_VISION_API_KEY --value "gerçek-anahtarınız"
+```
+
 ## Teknoloji
 
 - **Expo SDK 50** — React Native 0.73
@@ -146,6 +177,23 @@ npm test
 `ScoreRing` bileşeninin render edilmesi. Yeni context veya kritik iş mantığı eklerken
 buraya karşılık gelen bir test dosyası eklenmesi önerilir.
 
+## Crash Raporlama (Sentry) — henüz kurulu değil
+
+`src/components/ErrorBoundary.tsx` yakaladığı hataları şu an sadece cihaz konsoluna
+yazıyor — kapalı test kullanıcılarından gelen çökmeleri görmenin bir yolu yok. Kurulum
+gerçek bir Sentry hesabı (DSN/org/proje) ve npm registry erişimi gerektirdiği için burada
+otomatik yapılamadı; kendi bilgisayarında şu adımlarla ~2 dakikada kurabilirsin:
+
+```bash
+npx @sentry/wizard@latest -i reactNative
+```
+
+Wizard, Sentry hesabına giriş yaptırır, `@sentry/react-native` paketini kurar,
+`app.json`'a config plugin'i ekler ve `App.tsx` ile `ErrorBoundary.tsx`'e gerekli
+`Sentry.init(...)` / `Sentry.captureException(...)` çağrılarını otomatik ekler. EAS Build
+ile bulut derlemesi alacaksan, kaynak haritalarının (source map) yüklenebilmesi için
+`SENTRY_AUTH_TOKEN`'ı da `eas secret:create` ile eklemen gerekir (wizard bunu da anlatır).
+
 ## Google Play'de Yayınlamadan Önce
 
 Aşağıdaki adımlar tamamlandı, ama yayınlamadan önce **senin de** yapman gereken birkaç şey var:
@@ -178,6 +226,61 @@ Aşağıdaki adımlar tamamlandı, ama yayınlamadan önce **senin de** yapman g
    isimlerini/logolarını yalnızca bilgilendirme/karşılaştırma amaçlı kullanıyor ve resmi bir
    marka temsilcisi değildir. Bunu Play Store açıklamanda da belirtmen önerilir (örn.
    "Bu uygulama herhangi bir otomobil üreticisiyle bağlantılı değildir.").
+
+6. **GDPR/UMP onay akışını gerçek bir cihazda test et.** `AdsContext.tsx` artık uygulama
+   açılışında Google'ın UMP (User Messaging Platform) onay formunu çalıştırıyor (bkz.
+   `AdsConsent.gatherConsent()`); AB/İngiltere/İsviçre dışında hızlıca geçer, o bölgelerde
+   forma göre reklamları başlatır. Play Console → **App content → Ads** ve **Data safety**
+   formlarında "Bu uygulama reklam gösteriyor" ve UMP kullanıldığını işaretlemeyi unutma.
+   Test etmek için AdMob'un [test cihazı / EEA debug geography](https://developers.google.com/admob/ump/android/quick-start#testing)
+   ayarlarına bakabilirsin — bunu koda sabit yazmadık, çünkü production'da yanlışlıkla
+   AB dışı kullanıcılara da form göstermesin diye.
+
+7. **Google Play Billing Library'yi güncelle (31 Ağustos 2026 son tarih).** Play Console
+   uyarısının kaynağı `react-native-purchases` (RevenueCat) paketinin kullandığı native
+   Android Billing Library sürümü — bu, `package.json`'daki paket sürümüne bağlı, kodda
+   elle değiştirebileceğin bir ayar değil. `react-native-purchases` v9.0.0'dan itibaren
+   Billing Library 8'e geçti (v10.0.0 ile 8.3.0'a güncellendi); `package.json`'ı
+   `^10.7.1`'e güncelledim ama bu paket **native bir bağımlılık** olduğu için:
+   - Bu sandbox'ta npm registry erişimi kapalı olduğu için `npm install`'ı ben çalıştıramadım —
+     projeyi aldıktan sonra kendi bilgisayarında `npm install` (ya da Expo uyumluluğunu da
+     kontrol eden `npx expo install react-native-purchases@latest`) çalıştırman gerekiyor.
+   - Sadece `package.json`'ı güncellemek yetmez — native tarafın yeniden derlenmesi lazım:
+     yeni bir `eas build` al (ya da lokal derleme kullanıyorsan `npx expo prebuild --clean`).
+   - v10.0.0'daki tek dikkat edilmesi gereken kırıcı değişiklik, RevenueCat'in artık
+     "tüketilmiş tek seferlik" satın almaları geri yükleyememesi — MotorKarne'de eski
+     "Reklamları Kaldır" (tek seferlik) ürünü zaten kod tarafında kullanılmıyor
+     (`Member.hasRemovedAds` — bkz. `MembersContext.tsx`, "ESKİ ALAN" notu), aktif ürün
+     aylık abonelik (`motorkarne_reklamsiz_aylik`) olduğu için bu seni etkilememeli; yine de
+     RevenueCat panelinden geçmişte o eski ürünü satın almış gerçek kullanıcı olup olmadığını
+     kontrol etmen iyi olur.
+   - Güncellemeden sonra cihazda gerçek bir satın alma/geri yükleme akışını test et
+     (özellikle `Purchases.configure`, `purchaseMonthly`, `restorePurchases` — bkz.
+     `src/state/PurchasesContext.tsx`).
+   - 31 Ağustos 2026'ya yetiştiremezsen Play Console'daki "Policy Center" üzerinden
+     1 Kasım 2026'ya kadar tek seferlik bir uzatma talep edebilirsin.
+
+## iOS'a Geçmeden Önce
+
+Şu an sadece Android'e kapalı test gönderiyorsun; ileride iOS build'i alacaksan önce şunlar gerekiyor:
+
+- **Gerçek iOS AdMob App ID'si.** `app.json`'daki `iosAppId` hâlâ Google'ın herkese açık
+  *test* kimliği (`ca-app-pub-3940256099942544~1458002511`). AdMob hesabından kendi iOS
+  App ID'ni al ve hem `app.json` hem `src/config/ads.ts` içindeki `ADMOB_APP_ID`'yi güncelle.
+- **Gerçek iOS reklam birimi (ad unit) ID'leri.** `src/config/ads.ts` içindeki
+  `REAL_IDS.banner/interstitial/rewarded.ios` alanları hâlâ `REPLACE_ME_IOS_...` — bunlar
+  doldurulmadan iOS'ta gerçek reklam gösterilmez (uygulama çökmez, sessizce test reklamı
+  göstermeye devam eder).
+- **Gerçek RevenueCat iOS API anahtarı.** `src/config/purchases.ts` içindeki `iosApiKey`
+  hâlâ `REPLACE_ME_REVENUECAT_IOS_KEY` — RevenueCat panelinden App Store bağlantını
+  kurup gerçek anahtarı girmen gerekiyor, yoksa iOS'ta satın almalar çalışmaz.
+- **App Tracking Transparency (ATT) izni.** Apple, iOS 14.5+'ta reklam SDK'sının cihaz
+  tanımlayıcısını (IDFA) kullanabilmesi için kullanıcıdan ayrıca bir ATT izni istemeni
+  şart koşuyor — bu, yukarıdaki GDPR/UMP onayından FARKLI, ek bir adımdır. `app.json`'a
+  `userTrackingUsageDescription` metnini zaten ekledik ama gerçek izin isteğini kod
+  tarafında tetiklemek için `npx expo install expo-tracking-transparency` ile paketi
+  kurup uygulama açılışında (UMP onayından sonra) `requestTrackingPermissionsAsync()`
+  çağırman gerekiyor. Bu adım atlanırsa Apple incelemede reddedebilir.
 
 ## Android Build Alma (EAS)
 

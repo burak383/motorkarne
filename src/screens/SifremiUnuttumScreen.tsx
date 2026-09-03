@@ -7,17 +7,27 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, KeyRound } from 'lucide-react-native';
+import { notifyThenProceed } from '../utils/confirm';
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
 import { useMembers } from '../state/MembersContext';
 
 type Nav = NativeStackNavigationProp<any>;
 
+// GÜVENLİK NOTU: Bu ekran gerçek bir e-posta doğrulaması YAPMAZ — uygulamanın hiçbir
+// e-posta/SMS gönderme altyapısı yok (MembersContext tamamen cihaz-yerel AsyncStorage
+// kullanıyor, bkz. src/state/MembersContext.tsx). "handleVerifyEmail" sadece girilen
+// e-postanın BU CİHAZDA kayıtlı olup olmadığını kontrol eder; kimliğin gerçekten o
+// kişiye ait olduğunu doğrulamaz. Pratikte risk sınırlıdır çünkü hesaplar cihazlar
+// arasında senkronize olmuyor (bir hesabı ele geçirmek için aynı fiziksel cihaza erişim
+// gerekir), ancak arayüz metninin bunu "doğrulama" olarak sunmaması için özellikle
+// nötr bir dil kullanılmıştır. Gerçek bir doğrulama için backend'e bir e-posta gönderme
+// servisi (örn. SendGrid) ve tek kullanımlık kod/link akışı eklenmesi gerekir.
 export default function SifremiUnuttumScreen() {
   const nav = useNavigation<Nav>();
   const { themeColors: colors } = useTheme();
@@ -48,9 +58,11 @@ export default function SifremiUnuttumScreen() {
       Alert.alert('MotorKarne', result.error ?? 'Şifre sıfırlanamadı.');
       return;
     }
-    Alert.alert('MotorKarne', 'Şifreniz güncellendi. Yeni şifrenizle giriş yapabilirsiniz.', [
-      { text: 'Tamam', onPress: () => nav.navigate('GirisYap') },
-    ]);
+    notifyThenProceed(
+      'MotorKarne',
+      'Şifreniz güncellendi. Yeni şifrenizle giriş yapabilirsiniz.',
+      () => nav.navigate('GirisYap')
+    );
   };
 
   return (
@@ -71,8 +83,8 @@ export default function SifremiUnuttumScreen() {
           <Text style={s.introTitle}>Şifrenizi Sıfırlayın</Text>
           <Text style={s.introSub}>
             {emailVerified
-              ? 'Hesabınız doğrulandı. Şimdi yeni bir şifre belirleyin.'
-              : 'Kayıtlı e-posta adresinizi girin, hesabınızı doğrulayalım.'}
+              ? 'Bu cihazda bu e-postayla kayıtlı bir hesap bulundu. Şimdi yeni bir şifre belirleyin.'
+              : 'Bu cihazda kayıtlı e-posta adresinizi girin.'}
           </Text>
         </View>
 
@@ -96,7 +108,7 @@ export default function SifremiUnuttumScreen() {
 
           {!emailVerified ? (
             <TouchableOpacity style={s.actionBtn} onPress={handleVerifyEmail}>
-              <Text style={s.actionBtnText}>Hesabımı Doğrula</Text>
+              <Text style={s.actionBtnText}>Devam Et</Text>
             </TouchableOpacity>
           ) : (
             <>

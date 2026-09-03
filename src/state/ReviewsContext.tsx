@@ -9,6 +9,7 @@ export interface Review {
   rating: number; // 1-5
   comment: string;
   createdAt: string;
+  photoUri?: string;
 }
 
 export interface AddReviewResult {
@@ -21,7 +22,7 @@ interface ReviewsContextType {
   reviews: Review[];
   getReviewsForMotor: (motorId: string) => Review[];
   getAverageRating: (motorId: string) => number | null;
-  addReview: (input: { motorId: string; userId: string; userName: string; rating: number; comment: string }) => AddReviewResult;
+  addReview: (input: { motorId: string; userId: string; userName: string; rating: number; comment: string; photoUri?: string }) => AddReviewResult;
 }
 
 const STORAGE_KEY = 'motorkarne_reviews';
@@ -87,6 +88,7 @@ export const ReviewsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       rating: input.rating,
       comment: input.comment.trim(),
       createdAt: new Date().toLocaleDateString('tr-TR'),
+      photoUri: input.photoUri,
     };
 
     setReviews((prev) => {

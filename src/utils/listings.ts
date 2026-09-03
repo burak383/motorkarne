@@ -21,7 +21,9 @@ function slugify(text: string): string {
 // adını çıkarmaya çalışır (örn. "Fiat Egea 1.0 Firefly" -> "Fiat Egea").
 function extractBaseModelName(vehicle: Vehicle): string {
   const withoutParens = vehicle.name.replace(/\([^)]*\)/g, '').trim();
-  const words = withoutParens.split(/\s+/);
+  // NOT: ''.split(/\s+/) JS'de [] değil [''] döndürür — bu yüzden boş elemanları
+  // filtrelemek gerekiyor, aksi halde aşağıdaki "markaya düş" mantığı hiç tetiklenmez.
+  const words = withoutParens.split(/\s+/).filter((w) => w.length > 0);
   const cutIndex = words.findIndex((w) => /\d/.test(w));
   const kept = cutIndex === -1 ? words : words.slice(0, cutIndex);
   return kept.length > 0 ? kept.join(' ') : vehicle.brand;

@@ -1,30 +1,47 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView, NativeSyntheticEvent, NativeScrollEvent,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, NativeSyntheticEvent, NativeScrollEvent,
   Modal, TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { confirmAction } from '../utils/confirm';
 import {
   BookmarkCheck, ChevronRight, CalendarDays, Clock3,
-  GitCompareArrows, BookmarkPlus, Columns3, ArrowUpRight, Compass, ArrowUp, X, Trash2,
+  GitCompareArrows, BookmarkPlus, Columns3, ArrowUpRight, Compass, ArrowUp, X, Trash2, FileDown,
   Gauge, Wrench, CheckCircle2,
 } from 'lucide-react-native';
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useFavorites } from '../state/FavoritesContext';
-import { getVehicleById, type Vehicle, type Motor } from '../data/catalog';
+import { useMembers } from '../state/MembersContext';
+import type { Vehicle, Motor } from '../data/catalog';
+import { useVehicles } from '../state/VehicleContext';
+import { useAds } from '../state/AdsContext';
+import BannerAdSlot from '../components/BannerAdSlot';
 import { useCatalog } from '../state/CatalogContext';
 import RemoteImage from '../components/RemoteImage';
 import { useMaintenance } from '../state/MaintenanceContext';
 import { useNotifications } from '../state/NotificationsContext';
 import { getMaintenanceStatus, isElectric } from '../utils/maintenance';
+import { getRiskInfo } from '../utils/risk';
+import { exportComparisonHistoryAsPdf } from '../utils/exportPdf';
+import ProfileAvatarButton from '../components/ProfileAvatarButton';
 
 type Nav = NativeStackNavigationProp<any>;
 
 export default function KaydedilenlerScreen() {
+  const { getVehicleById } = useVehicles();
+  const { registerScreenView } = useAds();
+  useFocusEffect(
+    React.useCallback(() => {
+      registerScreenView();
+    }, [])
+  );
   const nav = useNavigation<Nav>();
+  const { currentUser } = useMembers();
   const { savedVehicles, savedComparisons, toggleVehicle, removeComparison, clearAll } = useFavorites();
   const { getMotorById } = useCatalog();
   const { themeColors: colors } = useTheme();
@@ -83,6 +100,17 @@ export default function KaydedilenlerScreen() {
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  const handleExportPdf = async () => {
+    if (exportingPdf) return;
+    setExportingPdf(true);
+    const result = await exportComparisonHistoryAsPdf(savedComparisons, getMotorById);
+    setExportingPdf(false);
+    if (!result.success) {
+      Alert.alert('MotorKarne', result.error ?? 'PDF dışa aktarılamadı.');
+    }
+  };
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (e.nativeEvent.contentOffset.y > 200) {
@@ -112,24 +140,22 @@ export default function KaydedilenlerScreen() {
       ? getMaintenanceStatus(
           maintenanceVehicle.motor,
           parseInt(kmInput, 10) || getRecord(maintenanceVehicle.id)?.currentKm || 0,
-          getRecord(maintenanceVehicle.id)?.lastOilChangeKm ?? parseInt(kmInput, 10) ?? 0
+          getRecord(maintenanceVehicle.id)?.lastOilChangeKm ?? (parseInt(kmInput, 10) || 0)
         )
       : null;
 
   const handleClearAll = () => {
     if (!hasItems && savedComparisons.length === 0) return;
-    Alert.alert(
+    confirmAction(
       'Tümünü Temizle',
       'Kaydedilen tüm araçlar ve karşılaştırmalar listenizden kaldırılacak. Emin misiniz?',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Temizle', style: 'destructive', onPress: () => clearAll() },
-      ]
+      () => clearAll(),
+      { confirmText: 'Temizle', cancelText: 'Vazgeç' }
     );
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flex: 1, position: 'relative' }}>
         <ScrollView
           ref={scrollViewRef}
@@ -144,10 +170,13 @@ export default function KaydedilenlerScreen() {
               <Text style={s.eyebrow}>{t.kaydedilenlerEyebrow}</Text>
               <Text style={s.title}>{t.kaydedilenlerTitle}</Text>
             </View>
-            <TouchableOpacity style={s.editBtn} onPress={handleClearAll}>
-              <Trash2 size={16} color={colors.destructive} />
-              <Text style={[s.editText, { color: colors.destructive }]}>{t.clearAll}</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <TouchableOpacity style={s.editBtn} onPress={handleClearAll}>
+                <Trash2 size={16} color={colors.destructive} />
+                <Text style={[s.editText, { color: colors.destructive }]}>{t.clearAll}</Text>
+              </TouchableOpacity>
+              <ProfileAvatarButton />
+            </View>
           </View>
 
           {/* Watchlist */}
@@ -161,11 +190,15 @@ export default function KaydedilenlerScreen() {
             </View>
 
             {/* Big card */}
-            {big && (
+            {big && (() => {
+              const bigScore = big.motor?.score ?? big.score;
+              const bigRisk = getRiskInfo(bigScore);
+              const bigRiskColor = colors[bigRisk.colorKey];
+              return (
               <TouchableOpacity style={s.bigCard} activeOpacity={0.9} onPress={() => nav.navigate('MotorVeAracDetay', { motorId: big.motorId })}>
                 <View style={s.bigHero}>
-                  <View style={[s.riskTag, { backgroundColor: rgba(colors.success, 0.15), borderColor: rgba(colors.success, 0.3) }]}>
-                    <Text style={[s.riskTagText, { color: colors.success }]}>{big.motor?.risk ?? 'Düşük risk'}</Text>
+                  <View style={[s.riskTag, { backgroundColor: rgba(bigRiskColor, 0.15), borderColor: rgba(bigRiskColor, 0.3) }]}>
+                    <Text style={[s.riskTagText, { color: bigRiskColor }]}>{bigRisk.label}</Text>
                   </View>
                   <TouchableOpacity
                     style={s.bigBookmark}
@@ -181,11 +214,11 @@ export default function KaydedilenlerScreen() {
                     onPress={() => openMaintenance(big.id)}
                   >
                     <Wrench size={14} color={colors.primaryForeground} />
-                    <Text style={s.bigMaintenanceBtnText}>Bakım</Text>
+                    <Text style={s.bigMaintenanceBtnText}>{t.kayBakim}</Text>
                   </TouchableOpacity>
                   <RemoteImage uri={big.img} style={s.bigImage} resizeMode="contain" />
-                  <View style={s.bigScoreCircle}>
-                    <Text style={s.bigScoreText}>{big.motor?.score.toFixed(1) ?? big.score.toFixed(1)}</Text>
+                  <View style={[s.bigScoreCircle, { borderColor: bigRiskColor }]}>
+                    <Text style={s.bigScoreText}>{bigScore.toFixed(1)}</Text>
                     <Text style={s.bigScoreSub}>/ 10</Text>
                   </View>
                 </View>
@@ -200,9 +233,9 @@ export default function KaydedilenlerScreen() {
                   <View style={s.bigFooter}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <CalendarDays size={14} color={colors.mutedForeground} />
-                      <Text style={s.bigDate}>Kayıt: {big.savedAt}</Text>
+                      <Text style={s.bigDate}>{t.kayKayitEtiketi}: {big.savedAt}</Text>
                     </View>
-                    <Text style={[s.bigNote, { color: colors.success }]}>{big.motor?.note ?? big.note}</Text>
+                    <Text style={[s.bigNote, { color: bigRiskColor }]}>{big.motor?.note ?? big.note}</Text>
                   </View>
                   {(() => {
                     const record = getRecord(big.id);
@@ -218,23 +251,28 @@ export default function KaydedilenlerScreen() {
                           ]}
                         >
                           {status.isOverdue
-                            ? `Yağ değişimi gecikti (${Math.abs(status.remainingKm).toLocaleString('tr-TR')} km aşıldı)`
-                            : `Yağ değişimine ${status.remainingKm.toLocaleString('tr-TR')} km kaldı`}
+                            ? `${t.kayYagDegisimiGecti} (${Math.abs(status.remainingKm).toLocaleString('tr-TR')} ${t.kayKmAsildi})`
+                            : `${t.kayYagDegisimiKalanKisa} ${status.remainingKm.toLocaleString('tr-TR')} ${t.kayKmKaldi}`}
                         </Text>
                       </TouchableOpacity>
                     );
                   })()}
                 </View>
               </TouchableOpacity>
-            )}
+              );
+            })()}
 
             {/* Small cards row */}
             <View style={s.smallRow}>
-              {rest.map((c) => (
+              {rest.map((c) => {
+                const cScore = c.motor?.score ?? c.score;
+                const cRisk = getRiskInfo(cScore);
+                const cRiskColor = colors[cRisk.colorKey];
+                return (
                 <TouchableOpacity key={c.name} style={s.smallCard} activeOpacity={0.9} onPress={() => nav.navigate('MotorVeAracDetay', { motorId: c.motorId })}>
                   <View style={s.smallHero}>
-                    <View style={[s.smallRiskTag, { backgroundColor: rgba(colors.success, 0.15) }]}>
-                      <Text style={[s.smallRiskText, { color: colors.success }]}>{c.motor?.risk ?? 'İyi'}</Text>
+                    <View style={[s.smallRiskTag, { backgroundColor: rgba(cRiskColor, 0.15) }]}>
+                      <Text style={[s.smallRiskText, { color: cRiskColor }]}>{cRisk.label}</Text>
                     </View>
                     <TouchableOpacity
                       style={s.smallBookmark}
@@ -252,8 +290,8 @@ export default function KaydedilenlerScreen() {
                       <Wrench size={11} color={colors.primaryForeground} />
                     </TouchableOpacity>
                     <RemoteImage uri={c.img} style={s.smallImage} resizeMode="contain" />
-                    <View style={s.smallScore}>
-                      <Text style={s.smallScoreText}>{c.motor?.score.toFixed(1) ?? c.score.toFixed(1)}</Text>
+                    <View style={[s.smallScore, { borderColor: cRiskColor }]}>
+                      <Text style={s.smallScoreText}>{cScore.toFixed(1)}</Text>
                       <Text style={s.smallScoreSub}>/ 10</Text>
                     </View>
                   </View>
@@ -265,7 +303,7 @@ export default function KaydedilenlerScreen() {
                         <Clock3 size={12} color={colors.mutedForeground} />
                         <Text style={s.smallDate}>{c.savedAt}</Text>
                       </View>
-                      <Text style={[s.smallNote, { color: colors.success }]}>{c.motor?.note ?? c.note}</Text>
+                      <Text style={[s.smallNote, { color: cRiskColor }]}>{c.motor?.note ?? c.note}</Text>
                     </View>
                     {(() => {
                       const record = getRecord(c.id);
@@ -278,13 +316,14 @@ export default function KaydedilenlerScreen() {
                             { color: status.isOverdue ? colors.destructive : status.isNear ? colors.chart3 : colors.mutedForeground },
                           ]}
                         >
-                          {status.isOverdue ? 'Yağ değişimi gecikti' : `Yağ değişimi: ${status.remainingKm.toLocaleString('tr-TR')} km kaldı`}
+                          {status.isOverdue ? t.kayYagDegisimiGecti : `${t.kayYagDegisimiKalanKisa} ${status.remainingKm.toLocaleString('tr-TR')} ${t.kayKmKaldi}`}
                         </Text>
                       );
                     })()}
                   </View>
                 </TouchableOpacity>
-              ))}
+                );
+              })}
             </View>
           </View>
 
@@ -297,6 +336,18 @@ export default function KaydedilenlerScreen() {
               </View>
               <Columns3 size={20} color={colors.primary} />
             </View>
+            {savedComparisons.length > 0 && (
+              <TouchableOpacity
+                style={s.exportPdfBtn}
+                onPress={handleExportPdf}
+                disabled={exportingPdf}
+              >
+                <FileDown size={15} color={colors.primary} />
+                <Text style={s.exportPdfBtnText}>
+                  {exportingPdf ? 'PDF hazırlanıyor...' : 'Karşılaştırma Geçmişini PDF Olarak Dışa Aktar'}
+                </Text>
+              </TouchableOpacity>
+            )}
             <View style={{ gap: 12, marginTop: 16 }}>
               {savedComparisons.map((c) => {
                 const motorA = getMotorById(c.motorA);
@@ -308,7 +359,7 @@ export default function KaydedilenlerScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.compareTitle}>{motorA?.name ?? c.motorA} <Text style={{ color: colors.mutedForeground }}>vs</Text> {motorB?.name ?? c.motorB}</Text>
-                      <Text style={s.compareDesc}>Kayıt: {c.savedAt}</Text>
+                      <Text style={s.compareDesc}>{t.kayKayitEtiketi}: {c.savedAt}</Text>
                     </View>
                     <TouchableOpacity
                       style={s.compareRemoveBtn}
@@ -327,19 +378,34 @@ export default function KaydedilenlerScreen() {
           </View>
 
           {/* Empty hint */}
-          <View style={[s.emptyBox, hasItems && { display: 'none' }]}>
-            <View style={s.emptyIcon}>
-              <BookmarkPlus size={20} color={colors.mutedForeground} />
+          {!currentUser ? (
+            <View style={s.emptyBox}>
+              <View style={s.emptyIcon}>
+                <BookmarkPlus size={20} color={colors.mutedForeground} />
+              </View>
+              <Text style={s.emptyTitle}>Kaydedilenleri görmek için giriş yapın</Text>
+              <Text style={s.emptyDesc}>
+                Kaydettiğiniz araçlar ve karşılaştırmalar hesabınıza bağlı olarak saklanır.
+              </Text>
+              <TouchableOpacity style={s.emptyBtn} onPress={() => nav.navigate('GirisYap' as any)}>
+                <Text style={s.emptyBtnText}>Giriş Yap</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={s.emptyTitle}>{t.emptyListTitle}</Text>
-            <Text style={s.emptyDesc}>
-              {t.emptyListDesc}
-            </Text>
-            <TouchableOpacity style={s.emptyBtn} onPress={() => nav.navigate('Tabs' as any)}>
-              <Compass size={16} color={colors.primaryForeground} />
-              <Text style={s.emptyBtnText}>{t.exploreEngines}</Text>
-            </TouchableOpacity>
-          </View>
+          ) : (
+            <View style={[s.emptyBox, hasItems && { display: 'none' }]}>
+              <View style={s.emptyIcon}>
+                <BookmarkPlus size={20} color={colors.mutedForeground} />
+              </View>
+              <Text style={s.emptyTitle}>{t.emptyListTitle}</Text>
+              <Text style={s.emptyDesc}>
+                {t.emptyListDesc}
+              </Text>
+              <TouchableOpacity style={s.emptyBtn} onPress={() => nav.navigate('Tabs' as any)}>
+                <Compass size={16} color={colors.primaryForeground} />
+                <Text style={s.emptyBtnText}>{t.exploreEngines}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
 
         {showScrollTop && (
@@ -365,7 +431,7 @@ export default function KaydedilenlerScreen() {
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Bakım Takibi</Text>
+              <Text style={s.modalTitle}>{t.kayBakimTakibi}</Text>
               <TouchableOpacity style={s.modalCloseBtn} onPress={() => setMaintenanceVehicleId(null)}>
                 <X size={18} color={colors.cardForeground} />
               </TouchableOpacity>
@@ -377,18 +443,17 @@ export default function KaydedilenlerScreen() {
 
                 {maintenanceVehicle.motor && isElectric(maintenanceVehicle.motor) ? (
                   <Text style={s.modalElectricNote}>
-                    Bu araç elektrikli olduğu için motor yağı değişimi takibi uygulanmaz. Yine de genel
-                    periyodik bakım kilometresi için sayacınızı güncel tutabilirsiniz.
+                    {t.kayElektrikliNot}
                   </Text>
                 ) : null}
 
-                <Text style={s.settingsLabel}>Güncel Kilometre</Text>
+                <Text style={s.settingsLabel}>{t.kayGuncelKilometre}</Text>
                 <TextInput
                   style={s.settingsInput}
                   value={kmInput}
                   onChangeText={setKmInput}
                   keyboardType="numeric"
-                  placeholder="örn. 45000"
+                  placeholder="45000"
                   placeholderTextColor={colors.mutedForeground}
                 />
 
@@ -396,9 +461,9 @@ export default function KaydedilenlerScreen() {
                   <View style={s.maintenanceProgressBox}>
                     <View style={s.rowBetween}>
                       <Text style={s.maintenanceProgressLabel}>
-                        Yağ değişimine kalan: {maintenanceStatus.isOverdue ? '0' : maintenanceStatus.remainingKm.toLocaleString('tr-TR')} km
+                        {t.kayYagDegisimineKalan}: {maintenanceStatus.isOverdue ? '0' : maintenanceStatus.remainingKm.toLocaleString('tr-TR')} km
                       </Text>
-                      <Text style={s.maintenanceProgressLabel}>{maintenanceStatus.intervalKm.toLocaleString('tr-TR')} km aralık</Text>
+                      <Text style={s.maintenanceProgressLabel}>{maintenanceStatus.intervalKm.toLocaleString('tr-TR')} {t.kayKmAralik}</Text>
                     </View>
                     <View style={s.maintenanceProgressBar}>
                       <View
@@ -417,20 +482,20 @@ export default function KaydedilenlerScreen() {
                     </View>
                     {maintenanceStatus.isOverdue && (
                       <Text style={[s.maintenanceWarning, { color: colors.destructive }]}>
-                        Yağ değişimi zamanı geçmiş görünüyor.
+                        {t.kayYagDegisimiGectiUyari}
                       </Text>
                     )}
                   </View>
                 )}
 
                 <TouchableOpacity style={s.saveBtn} onPress={() => saveKm(maintenanceVehicle)}>
-                  <Text style={s.saveBtnText}>Kilometreyi Kaydet</Text>
+                  <Text style={s.saveBtnText}>{t.kayKilometreyiKaydet}</Text>
                 </TouchableOpacity>
 
                 {maintenanceVehicle.motor && !isElectric(maintenanceVehicle.motor) && (
                   <TouchableOpacity style={s.oilChangeBtn} onPress={() => markOilChanged(maintenanceVehicle)}>
                     <CheckCircle2 size={16} color={colors.success} />
-                    <Text style={s.oilChangeBtnText}>Yağ Değişimi Yaptım</Text>
+                    <Text style={s.oilChangeBtnText}>{t.kayYagDegisimiYaptim}</Text>
                   </TouchableOpacity>
                 )}
               </>
@@ -438,6 +503,7 @@ export default function KaydedilenlerScreen() {
           </View>
         </View>
       </Modal>
+      <BannerAdSlot />
     </SafeAreaView>
   );
 }
@@ -448,6 +514,12 @@ const getStyles = (colors: any) => StyleSheet.create({
   eyebrow: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.primary, letterSpacing: 1.6, textTransform: 'uppercase' },
   title: { fontFamily: fonts.heading.bold, fontSize: 24, color: colors.foreground, marginTop: 4 },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  exportPdfBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginTop: 14, borderRadius: radius, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.card, paddingVertical: 12,
+  },
+  exportPdfBtnText: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.primary },
   editText: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.cardForeground },
   rowBetween: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   sectionTitleLg: { fontFamily: fonts.heading.bold, fontSize: 18, color: colors.foreground },

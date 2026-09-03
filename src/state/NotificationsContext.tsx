@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { sendPushNotification } from '../utils/pushNotifications';
 
 export interface AppNotification {
   id: string;
@@ -77,6 +78,11 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
       const next = [newItem, ...prev];
       persist(next);
       return next;
+    });
+    // Uygulama içi listeye ek olarak gerçek bir OS bildirimi de gönder
+    // (kullanıcı izin verdiyse; vermediyse sessizce yok sayılır).
+    sendPushNotification(title, body).catch(() => {
+      // yok say
     });
   };
 

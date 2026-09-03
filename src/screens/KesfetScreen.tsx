@@ -6,34 +6,41 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Gauge,
   Bell,
   Search,
   SlidersHorizontal,
+  Camera,
+  TrendingUp,
   ChevronRight,
   Stethoscope,
   AlertTriangle,
   ArrowUpRight,
   Bookmark,
   ArrowUp,
+  Link2,
 } from 'lucide-react-native';
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ScoreRing } from '../components/ScoreRing';
 import { useCatalog } from '../state/CatalogContext';
+import { useUsageStats } from '../state/UsageStatsContext';
 import { getRiskInfo } from '../utils/risk';
+import ProfileAvatarButton from '../components/ProfileAvatarButton';
 import { getVehicleImage, getBrandLogo } from '../data/images';
 import RemoteImage from '../components/RemoteImage';
 import { useNotifications } from '../state/NotificationsContext';
-import { useMembers } from '../state/MembersContext';
+import { useAds } from '../state/AdsContext';
+import BannerAdSlot from '../components/BannerAdSlot';
+import RewardedAdPrompt from '../components/RewardedAdPrompt';
 
 type Nav = NativeStackNavigationProp<any>;
 
@@ -57,6 +64,12 @@ export default function KesfetScreen() {
   const { themeColors: colors } = useTheme();
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
+  const { registerScreenView } = useAds();
+  useFocusEffect(
+    React.useCallback(() => {
+      registerScreenView();
+    }, [])
+  );
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -77,16 +90,11 @@ export default function KesfetScreen() {
   const s = useMemo(() => getStyles(colors), [colors]);
   const { motors: catalogMotors } = useCatalog();
   const { unreadCount } = useNotifications();
-  const { currentUser } = useMembers();
+  const { getTopMotorIds } = useUsageStats();
 
-  const avatarInitials = useMemo(() => {
-    if (!currentUser?.fullName) return '?';
-    const parts = currentUser.fullName.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return '?';
-    const first = parts[0].charAt(0);
-    const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
-    return (first + last).toUpperCase();
-  }, [currentUser?.fullName]);
+  const topUsageMotors = getTopMotorIds(5)
+    .map((id) => catalogMotors.find((m) => m.id === id))
+    .filter((m): m is NonNullable<typeof m> => !!m);
 
   const topMotors = catalogMotors.slice(0, 5).map((m) => ({
     id: m.id,
@@ -98,7 +106,7 @@ export default function KesfetScreen() {
   }));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flex: 1, position: 'relative' }}>
         <ScrollView
           ref={scrollViewRef}
@@ -123,9 +131,7 @@ export default function KesfetScreen() {
                 <Bell size={18} color={colors.cardForeground} />
                 {unreadCount > 0 && <View style={s.bellDot} />}
               </TouchableOpacity>
-              <TouchableOpacity style={s.avatar} onPress={() => nav.navigate('Profil')} accessibilityRole="button" accessibilityLabel="Profilim">
-                <Text style={s.avatarText}>{avatarInitials}</Text>
-              </TouchableOpacity>
+              <ProfileAvatarButton />
             </View>
           </View>
 
@@ -144,6 +150,24 @@ export default function KesfetScreen() {
                 <SlidersHorizontal size={16} color={colors.secondaryForeground} />
               </View>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={s.scanRow}
+              onPress={() => nav.navigate('MotorKoduTara')}
+              accessibilityRole="button"
+              accessibilityLabel="Motor kodunu tara"
+            >
+              <Camera size={14} color={colors.primary} />
+              <Text style={s.scanRowText}>Motor kodunu kamerayla tara</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.scanRow}
+              onPress={() => nav.navigate('LinkleArama')}
+              accessibilityRole="button"
+              accessibilityLabel="İlan linkinden ara"
+            >
+              <Link2 size={14} color={colors.primary} />
+              <Text style={s.scanRowText}>İlan linkinden veya metninden ara</Text>
+            </TouchableOpacity>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
               <Text style={[s.popularTag, { color: colors.mutedForeground }]}>{t.popular}</Text>
               {['1.5 TSI', '1.3 TCe', '1.8 Hybrid', '2.0 B48'].map((item) => (
@@ -153,6 +177,8 @@ export default function KesfetScreen() {
               ))}
             </ScrollView>
           </View>
+
+          <RewardedAdPrompt />
 
           {/* Popular brands */}
           <View style={{ marginTop: 28 }}>
@@ -315,6 +341,38 @@ export default function KesfetScreen() {
               <ChevronRight size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
+
+          {/* En Çok İncelediklerin */}
+          {topUsageMotors.length > 0 && (
+            <View style={{ marginTop: 28, paddingHorizontal: 20 }}>
+              <View style={s.rowBetween}>
+                <Text style={s.sectionTitleLg}>En Çok İncelediklerin</Text>
+                <TrendingUp size={20} color={colors.primary} />
+              </View>
+              <Text style={s.sectionSub}>
+                Bu liste kişiseldir; sadece senin bu cihazdaki görüntüleme/karşılaştırma geçmişine dayanır.
+              </Text>
+              <View style={{ marginTop: 12 }}>
+                <View style={s.motorList}>
+                  {topUsageMotors.map((m, i) => (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[s.motorRow, i < topUsageMotors.length - 1 && s.motorRowBorder]}
+                      onPress={() => nav.navigate('MotorVeAracDetay', { motorId: m.id })}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.motorName}>{m.name}</Text>
+                        <Text style={s.motorDesc}>{m.fuel} • {m.brands.join(', ')}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[s.motorScore, { color: colors[getRiskInfo(m.score).colorKey] }]}>{m.score.toFixed(1)}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
         </ScrollView>
 
         {/* Floating Scroll-to-Top Button */}
@@ -330,6 +388,7 @@ export default function KesfetScreen() {
           </TouchableOpacity>
         )}
       </View>
+      <BannerAdSlot />
     </SafeAreaView>
   );
 }
@@ -399,6 +458,19 @@ const getStyles = (colors: any) =>
       backgroundColor: colors.input,
     },
     searchPlaceholder: { flex: 1, fontSize: 14, color: colors.foreground },
+    scanRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: 10,
+      paddingVertical: 8,
+    },
+    scanRowText: {
+      fontSize: 12,
+      fontFamily: fonts.body.semibold,
+      color: colors.primary,
+    },
     searchFilter: {
       width: 28,
       height: 28,
