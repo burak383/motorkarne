@@ -18,13 +18,16 @@
 <body>
 
   <h1>MotorKarne — Gizlilik Politikası</h1>
-  <p class="updated">Son güncelleme: 31 Temmuz 2026</p>
+  <p class="updated">Son güncelleme: 5 Ağustos 2026</p>
 
   <div class="note">
-    <strong>Özet:</strong> MotorKarne, ayrı bir sunucu/backend altyapısı kullanmayan bir uygulamadır.
-    Hesap bilgileriniz (ad, e-posta, telefon, şifre) ve uygulama içi verileriniz (favoriler,
-    karşılaştırmalar, yorumlar, bildirimler) yalnızca kullandığınız cihazda saklanır; MotorKarne'nın
-    sunucularına veya üçüncü taraflara iletilmez, satılmaz ya da paylaşılmaz.
+    <strong>Özet:</strong> Hesap bilgileriniz (ad, e-posta, telefon, şifre) ve uygulama içi
+    kişisel verileriniz (favoriler, karşılaştırmalar, yorumlar, bildirimler, profil fotoğrafı)
+    yalnızca kullandığınız cihazda saklanır; bu bilgiler MotorKarne'nın sunucularına
+    gönderilmez. Ayrıca, motor/araç katalog verilerini (marka, model, teknik özellik, güvenilirlik
+    bilgisi gibi genel referans verileri — kişisel veri <strong>değildir</strong>) size
+    sunabilmek için uygulama, MotorKarne'nın kendi sunucu altyapısına bağlanır. Bu bağlantı
+    sırasında hiçbir hesap veya kişisel veriniz sunucuya iletilmez.
   </div>
 
   <h2>1. Toplanan Bilgiler</h2>
@@ -39,14 +42,27 @@
   yazdığınız yorumlar ve profil fotoğrafınız (galeriden seçtiğiniz) cihazınızda saklanır.</p>
 
   <h2>2. Verilerin Saklandığı Yer</h2>
-  <p>Tüm bu bilgiler yalnızca cihazınızın yerel depolama alanında (AsyncStorage) tutulur.
-  MotorKarne'nın herhangi bir uzak sunucusu, veritabanı ya da bulut depolaması <strong>yoktur</strong>.
-  Bu nedenle:</p>
+  <p><strong>Kişisel verileriniz</strong> (hesap bilgileriniz, favorileriniz, yorumlarınız, profil
+  fotoğrafınız) yalnızca cihazınızın yerel depolama alanında (AsyncStorage) tutulur. Bu nedenle:</p>
   <ul>
-    <li>Verileriniz internete gönderilmez.</li>
-    <li>Verileriniz hiçbir üçüncü tarafla paylaşılmaz veya satılmaz.</li>
-    <li>Uygulamayı cihazınızdan kaldırdığınızda (uninstall) tüm bu veriler kalıcı olarak silinir.</li>
+    <li>Kişisel verileriniz internete gönderilmez.</li>
+    <li>Kişisel verileriniz hiçbir üçüncü tarafla paylaşılmaz veya satılmaz.</li>
+    <li>Uygulamayı cihazınızdan kaldırdığınızda (uninstall) bu kişisel veriler kalıcı olarak silinir.</li>
   </ul>
+  <p><strong>Motor/araç katalog verileri</strong> (marka, model, teknik özellik, güvenilirlik puanı,
+  bilinen arıza bilgisi gibi genel referans içerikleri) ise güncel kalabilmesi için MotorKarne'nın
+  kendi sunucusundan (bulut tabanlı bir veritabanından) çekilir. Bu veriler genel otomotiv bilgisidir,
+  sizinle veya hesabınızla ilişkilendirilmez ve kişisel veri niteliği taşımaz. Bu bağlantı sırasında,
+  internet üzerinden yapılan her istekte olduğu gibi cihazınızın IP adresi teknik olarak sunucu
+  altyapısından geçer; ancak bu bilgi normal kullanım sırasında ayrıca kaydedilmez veya sizinle
+  ilişkilendirilmez.</p>
+
+  <h2>2a. Teknik Güvenlik Kaydı (Denetim Günlüğü)</h2>
+  <p>Katalog verisi yalnızca MotorKarne ekibi tarafından, yetkilendirilmiş bir yönetim paneli
+  üzerinden güncellenebilir. Bu güncellemeler (ekleme/düzenleme/silme), kötüye kullanımı önlemek ve
+  hataları geri izleyebilmek amacıyla, işlemi yapan bağlantının IP adresiyle birlikte teknik bir
+  güvenlik günlüğünde tutulur. Bu günlük yalnızca yönetici işlemlerini kapsar; uygulamayı normal
+  şekilde kullanan kullanıcıların hiçbir işlemi bu şekilde kaydedilmez.</p>
 
   <h2>3. İzinler</h2>
   <p>Uygulama, profil fotoğrafı seçebilmeniz için cihazınızın fotoğraf galerisine erişim izni
@@ -69,7 +85,7 @@
   değildir.</p>
 
   <h2>6. İletişim</h2>
-  <p>Bu gizlilik politikasıyla ilgili sorularınız için: <a href="mailto:destek@motorkarne.app">destek@motorkarne.app</a></p>
+  <p>Bu gizlilik politikasıyla ilgili sorularınız için: <a href="mailto:seolen8@gmail.com">seolen8@gmail.com</a></p>
 
   <footer>MotorKarne © 2026</footer>
 </body>
