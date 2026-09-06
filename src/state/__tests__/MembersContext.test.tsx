@@ -116,4 +116,24 @@ describe('MembersContext', () => {
     });
     expect(result.current.currentUser).toBeNull();
   });
+
+  it('rejects clearing the full name to empty when editing a profile', () => {
+    const { result } = renderHook(() => useMembers(), { wrapper });
+
+    act(() => {
+      result.current.registerMember({
+        fullName: 'İsim Soyisim',
+        email: `bosisim-${Date.now()}@example.com`,
+        password: 'sifre123',
+      });
+    });
+
+    let updateResult: { success: boolean; error?: string } | undefined;
+    act(() => {
+      updateResult = result.current.updateCurrentUser({ fullName: '   ' });
+    });
+
+    expect(updateResult?.success).toBe(false);
+    expect(result.current.currentUser?.fullName).toBe('İsim Soyisim');
+  });
 });

@@ -5,15 +5,14 @@ import Purchases, { PurchasesOffering } from 'react-native-purchases';
 import { REVENUECAT_CONFIG, isRevenueCatConfigured } from '../config/purchases';
 import { useMembers } from './MembersContext';
 
-// ÖNEMLİ: abonelik/reklamsız durumu BURADA, giriş yapılmış in-app hesaptan
-// (MembersContext.currentUser) BAĞIMSIZ olarak cihazda saklanır. Önceki
-// tasarımda bu bilgi sadece `currentUser`a bağlıydı (MembersContext.setAdsRemovedUntil
-// içeride `if (!currentUser) return;` yapıyordu) — yani kullanıcı uygulamaya
-// hiç giriş yapmadan (hesap oluşturmadan) RevenueCat üzerinden abonelik satın
-// aldığında, entitlement bilgisi hiçbir yere yazılmıyor, reklamlar satın almaya
-// rağmen göstermeye devam ediyordu. Bunu, RevenueCat zaten cihaz/anonim kullanıcı
-// bazlı çalıştığı için, in-app login şartı olmadan cihazda kalıcı hale getiriyoruz.
-const SUBSCRIPTION_AD_FREE_KEY = 'motorkarne_subscription_ad_free_until';
+// NOT: Abonelik satın alma artık HER ZAMAN giriş yapılmış bir hesap gerektiriyor
+// (bkz. aşağıdaki purchaseMonthly — `requiresLogin`). Bu nedenle "reklamsız"
+// durumunun cihazdaki hızlı-açılış önbelleği (RevenueCat'in ağ isteği sonuçlanana
+// kadar gösterilecek geçici değer) da HESABA bağlı tutulur: anahtarın sonuna
+// giriş yapan üyenin id'si eklenir. Aksi halde bir hesapta aktif olan abonelik,
+// RevenueCat'in gerçek doğrulaması henüz yapılandırılmamışken/tamamlanmadan önce
+// aynı cihazdaki farklı bir hesaba da "reklamsız" olarak görünebiliyordu.
+const SUBSCRIPTION_AD_FREE_KEY_PREFIX = 'motorkarne_subscription_ad_free_until_';
 
 interface PurchasesContextType {
   monthlyOffering: PurchasesOffering | null;
@@ -27,6 +26,11 @@ interface PurchasesContextType {
   purchaseMonthly: () => Promise<{ success: boolean; error?: string; requiresLogin?: boolean }>;
   // Kullanıcı daha önce satın aldıysa (örn. telefon değiştirdiyse) aboneliği geri yükler.
   restorePurchases: () => Promise<{ success: boolean; error?: string }>;
+  // Hesap silinirken çağrılır: yalnızca bu hesabın cihazdaki YEREL reklamsız-durum
+  // önbelleğini kaldırır. NOT: RevenueCat/Google Play'deki gerçek aboneliği iptal
+  // ETMEZ — bu, mağaza aboneliği yönetim ekranından ayrıca yapılmalı (bkz.
+  // delete-account.html'deki aynı açıklama).
+  clearLocalAdFreeCache: () => void;
 }
 
 const PurchasesContext = createContext<PurchasesContextType>({
@@ -35,6 +39,7 @@ const PurchasesContext = createContext<PurchasesContextType>({
   subscriptionAdFreeUntil: null,
   purchaseMonthly: async () => ({ success: false, error: 'PurchasesProvider bulunamadı' }),
   restorePurchases: async () => ({ success: false, error: 'PurchasesProvider bulunamadı' }),
+  clearLocalAdFreeCache: () => {},
 });
 
 export const PurchasesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -46,15 +51,29 @@ export const PurchasesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isConfigured, setIsConfigured] = useState(false);
   const [subscriptionAdFreeUntil, setSubscriptionAdFreeUntil] = useState<number | null>(null);
 
-  // Uygulama açılışında, cihazda önceden kaydedilmiş abonelik bitiş zamanını hemen
-  // yükle — RevenueCat ağ isteği tamamlanana kadar reklamlar yanlışlıkla görünmesin.
+  // Uygulama açılışında (veya hesap değiştiğinde), O HESABA ait önceden kaydedilmiş
+  // abonelik bitiş zamanını hemen yükle — RevenueCat ağ isteği tamamlanana kadar
+  // reklamlar yanlışlıkla görünmesin. Giriş yapılmamışsa (misafir) ya da hesap
+  // değiştiyse, önceki hesabın abonelik bilgisi görünmesin diye sıfırlanır.
   useEffect(() => {
-    AsyncStorage.getItem(SUBSCRIPTION_AD_FREE_KEY).then((raw) => {
-      if (!raw) return;
+    if (!currentUser) {
+      setSubscriptionAdFreeUntil(null);
+      return;
+    }
+    let cancelled = false;
+    AsyncStorage.getItem(SUBSCRIPTION_AD_FREE_KEY_PREFIX + currentUser.id).then((raw) => {
+      if (cancelled) return;
+      if (!raw) {
+        setSubscriptionAdFreeUntil(null);
+        return;
+      }
       const until = parseInt(raw, 10);
-      if (!isNaN(until)) setSubscriptionAdFreeUntil(until);
+      setSubscriptionAdFreeUntil(!isNaN(until) ? until : null);
     }).catch(() => {});
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.id]);
 
   // RevenueCat SDK'sını uygulama açılışında bir kere yapılandır.
   useEffect(() => {
@@ -115,10 +134,15 @@ export const PurchasesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const resolvedUntil = hasEntitlement ? (expiresAt ?? Number.MAX_SAFE_INTEGER) : null;
 
     setSubscriptionAdFreeUntil(resolvedUntil);
-    if (resolvedUntil !== null) {
-      AsyncStorage.setItem(SUBSCRIPTION_AD_FREE_KEY, String(resolvedUntil)).catch(() => {});
-    } else {
-      AsyncStorage.removeItem(SUBSCRIPTION_AD_FREE_KEY).catch(() => {});
+    // Yalnızca giriş yapılmış bir hesap varsa diske yazılır — abonelik satın alma
+    // zaten girişi zorunlu kıldığı için (bkz. purchaseMonthly), bu değer her zaman
+    // ilgili hesaba bağlı kalır ve başka bir hesaba sızmaz.
+    if (currentUser) {
+      if (resolvedUntil !== null) {
+        AsyncStorage.setItem(SUBSCRIPTION_AD_FREE_KEY_PREFIX + currentUser.id, String(resolvedUntil)).catch(() => {});
+      } else {
+        AsyncStorage.removeItem(SUBSCRIPTION_AD_FREE_KEY_PREFIX + currentUser.id).catch(() => {});
+      }
     }
 
     // Giriş yapılmış bir hesap varsa profil/hesap ekranlarında gösterim için
@@ -146,6 +170,22 @@ export const PurchasesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const { customerInfo } = await Purchases.purchasePackage(pkg);
       syncEntitlementToMember(customerInfo);
+      // ÖNEMLİ: Satın alma işlemi (ödeme) başarıyla tamamlanmış olabilir ama bu,
+      // RevenueCat'in "reklamsiz" entitlement'ını mutlaka aktif döndüreceği
+      // anlamına gelmez (örn. üründen entitlement'a yanlış eşleme, dashboard
+      // yapılandırma hatası). Önceden burada entitlement kontrol edilmeden
+      // doğrudan success:true dönülüyordu — bu da kullanıcıya "Aboneliğiniz
+      // aktif!" mesajı gösterilmesine rağmen reklamların gösterilmeye devam
+      // etmesine yol açabiliyordu. restorePurchases'daki gibi burada da
+      // entitlement'ın gerçekten aktif olduğunu doğruluyoruz.
+      const hasEntitlement = !!customerInfo.entitlements.active[REVENUECAT_CONFIG.adFreeEntitlementId];
+      if (!hasEntitlement) {
+        return {
+          success: false,
+          error:
+            'Ödeme alındı ancak reklamsız ayrıcalık henüz etkinleşmedi. Lütfen birkaç dakika sonra "Satın Alımları Geri Yükle" seçeneğini deneyin; sorun devam ederse destek ile iletişime geçin.',
+        };
+      }
       return { success: true };
     } catch (e: any) {
       if (e?.userCancelled) return { success: false }; // kullanıcı iptal etti, hata göstermeye gerek yok
@@ -166,9 +206,15 @@ export const PurchasesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const clearLocalAdFreeCache = () => {
+    if (!currentUser) return;
+    setSubscriptionAdFreeUntil(null);
+    AsyncStorage.removeItem(SUBSCRIPTION_AD_FREE_KEY_PREFIX + currentUser.id).catch(() => {});
+  };
+
   return (
     <PurchasesContext.Provider
-      value={{ monthlyOffering, isLoading, subscriptionAdFreeUntil, purchaseMonthly, restorePurchases }}
+      value={{ monthlyOffering, isLoading, subscriptionAdFreeUntil, purchaseMonthly, restorePurchases, clearLocalAdFreeCache }}
     >
       {children}
     </PurchasesContext.Provider>

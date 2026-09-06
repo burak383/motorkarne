@@ -50,6 +50,9 @@ import { useMembers } from '../state/MembersContext';
 import { usePurchases } from '../state/PurchasesContext';
 import { useFavorites } from '../state/FavoritesContext';
 import { useReviews } from '../state/ReviewsContext';
+import { useMaintenance } from '../state/MaintenanceContext';
+import { useNotifications } from '../state/NotificationsContext';
+import { useAds } from '../state/AdsContext';
 import { confirmAction } from '../utils/confirm';
 import RewardedAdPrompt from '../components/RewardedAdPrompt';
 
@@ -62,9 +65,12 @@ export default function ProfilScreen() {
   const { mode, toggleTheme, themeColors: colors } = useTheme();
   const { language, toggleLanguage, t } = useLanguage();
   const { currentUser, updateCurrentUser, changePassword, logout, deleteAccount } = useMembers();
-  const { restorePurchases } = usePurchases();
-  const { savedVehicles, savedComparisons } = useFavorites();
-  const { reviews } = useReviews();
+  const { restorePurchases, clearLocalAdFreeCache } = usePurchases();
+  const { savedVehicles, savedComparisons, clearAll: clearFavorites } = useFavorites();
+  const { reviews, deleteReviewsByUser } = useReviews();
+  const { clearAll: clearMaintenance } = useMaintenance();
+  const { clearAll: clearNotifications } = useNotifications();
+  const { clearRewardedBonus } = useAds();
   const s = useMemo(() => getStyles(colors), [colors]);
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -169,6 +175,22 @@ export default function ProfilScreen() {
       'Hesabı Sil',
       'Hesabınız ve tüm bilgileriniz kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam etmek istediğinize emin misiniz?',
       () => {
+        // ÖNEMLİ: MembersContext.deleteAccount() yalnızca üye kaydını (ad/e-posta/
+        // şifre) siler — favoriler, karşılaştırmalar, bakım kayıtları, bildirimler,
+        // ödüllü reklam bonusu, yerel abonelik önbelleği ve yorumlar AYRI context'lerde
+        // hesap id'sine göre saklanıyor. Bunlar temizlenmezse gizlilik politikasının
+        // vaat ettiğinin aksine (bkz. docs/delete-account.html) hesap "silindikten"
+        // sonra da cihazda öksüz veri olarak kalırdı. Bu yüzden hepsi, currentUser
+        // hâlâ geçerliyken (aşağıdaki deleteAccount() çağrısından ÖNCE) tek tek
+        // temizleniyor.
+        if (currentUser) {
+          clearFavorites();
+          clearMaintenance();
+          clearNotifications();
+          clearRewardedBonus();
+          clearLocalAdFreeCache();
+          deleteReviewsByUser(currentUser.id);
+        }
         deleteAccount();
         setIsEditing(false);
       },
@@ -435,6 +457,9 @@ export default function ProfilScreen() {
               value={currentPasswordInput}
               onChangeText={setCurrentPasswordInput}
               secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="password"
               placeholder="Mevcut şifreniz"
               placeholderTextColor={colors.mutedForeground}
             />
@@ -445,6 +470,9 @@ export default function ProfilScreen() {
               value={newPasswordInput}
               onChangeText={setNewPasswordInput}
               secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="newPassword"
               placeholder="En az 6 karakter"
               placeholderTextColor={colors.mutedForeground}
             />
@@ -455,6 +483,9 @@ export default function ProfilScreen() {
               value={confirmPasswordInput}
               onChangeText={setConfirmPasswordInput}
               secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="newPassword"
               placeholder="Yeni şifrenizi tekrar girin"
               placeholderTextColor={colors.mutedForeground}
             />

@@ -233,7 +233,12 @@ function MotorCard({ m, colors, s, onPress }: { m: Motor; colors: any; s: any; o
           {m.brands.join(', ')} · {m.fuel} · {m.transmission}
         </Text>
         <View style={[s.riskPill, { backgroundColor: rgba(riskColor, 0.15) }]}>
-          <Text style={[s.riskPillText, { color: riskColor }]}>{m.risk}</Text>
+          {/* NOT: elle girilmiş `m.risk` katalog alanı yerine, pilin rengiyle
+              (riskColor) aynı kaynaktan — skora göre hesaplanan riskInfo.label —
+              gösteriliyor. Aksi halde ikisi birbirinden sapabiliyor (örn. yeşil
+              pil üzerinde "Yüksek risk" yazması gibi), diğer ekranlarda bu ikisi
+              zaten hep birlikte kullanılıyor. */}
+          <Text style={[s.riskPillText, { color: riskColor }]}>{riskInfo.label}</Text>
         </View>
       </View>
       <ChevronRight size={20} color={colors.mutedForeground} />

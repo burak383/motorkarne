@@ -3,13 +3,16 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Constants from 'expo-constants';
 import { ArrowLeft, Compass, ImageIcon, ShieldCheck, ChevronRight } from 'lucide-react-native';
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
 
 type Nav = NativeStackNavigationProp<any>;
 
-const APP_VERSION = '1.0.0';
+// app.json'daki gerçek sürümden okunur — burada elle sabitlenmiş bir değer
+// sürüm güncellemelerinde unutulup ekranda eski/yanlış sürüm gösterebiliyordu.
+const APP_VERSION = Constants.expoConfig?.version ?? '1.1.3';
 
 export default function HakkindaScreen() {
   const nav = useNavigation<Nav>();

@@ -2,46 +2,34 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { PlayCircle, ShieldCheck, Crown } from 'lucide-react-native';
+import { ShieldCheck, Crown } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { fonts, radius, rgba } from '../theme/theme';
 import { useAds } from '../state/AdsContext';
 import { usePurchases } from '../state/PurchasesContext';
-import { AD_CONFIG } from '../config/ads';
 import { isRevenueCatConfigured } from '../config/purchases';
 
 type Nav = NativeStackNavigationProp<any>;
 
-// Ana ekranda gösterilen reklamsız deneyim kartı. İki seçenek sunar:
-// • Ödüllü reklam izleyip 30 gün ücretsiz reklamsız kullanım kazanmak
-// • Aylık 69,90 TL karşılığında sürekli reklamsız abone olmak
-// Zaten reklamsızsa, kalan süreyi/abonelik durumunu gösteren bir rozete dönüşür.
+// Ana ekranda gösterilen reklamsız deneyim kartı. Aylık abonelik ile sürekli
+// reklamsız olma seçeneğini sunar. Zaten aboneyse, kalan süreyi gösteren bir
+// rozete dönüşür. (NOT: "Reklam izle, 30 gün reklamsız kullan" seçeneği
+// kaldırıldı — reklamsız kullanım artık yalnızca abonelik ile sağlanıyor.)
 export default function RewardedAdPrompt() {
   const { themeColors: colors } = useTheme();
   const s = getStyles(colors);
   const nav = useNavigation<Nav>();
-  const { isAdFree, isSubscriptionAdFree, adFreeRemainingLabel, showRewardedAd, isRewardedAdReady } = useAds();
+  const { isAdFree, adFreeRemainingLabel } = useAds();
   const { monthlyOffering, isLoading, purchaseMonthly } = usePurchases();
 
   if (isAdFree) {
     return (
       <View style={[s.card, { borderColor: colors.success ?? '#22c55e' }]}>
         <ShieldCheck size={18} color={colors.success ?? '#22c55e'} />
-        <Text style={s.adFreeText}>
-          {isSubscriptionAdFree
-            ? `Reklamsız Abonelik aktif — ${adFreeRemainingLabel} kaldı`
-            : `Reklamsız mod aktif — ${adFreeRemainingLabel} kaldı`}
-        </Text>
+        <Text style={s.adFreeText}>Reklamsız Abonelik aktif — {adFreeRemainingLabel} kaldı</Text>
       </View>
     );
   }
-
-  const handleWatchAd = async () => {
-    const shown = await showRewardedAd();
-    if (!shown) {
-      Alert.alert('MotorKarne', 'Reklam şu an hazır değil, birkaç saniye sonra tekrar dene.');
-    }
-  };
 
   const handleSubscribe = async () => {
     if (!isRevenueCatConfigured()) {
@@ -72,13 +60,6 @@ export default function RewardedAdPrompt() {
 
   return (
     <View style={{ gap: 8 }}>
-      <TouchableOpacity style={s.card} onPress={handleWatchAd} activeOpacity={0.8} disabled={!isRewardedAdReady}>
-        <PlayCircle size={18} color={colors.primary} />
-        <Text style={s.text}>
-          Reklam izle, {AD_CONFIG.rewardedAdFreeDurationDays} gün reklamsız kullan
-        </Text>
-      </TouchableOpacity>
-
       <TouchableOpacity style={[s.card, s.premiumCard]} onPress={handleSubscribe} activeOpacity={0.8} disabled={isLoading}>
         <Crown size={18} color="#F5B400" />
         {isLoading ? (

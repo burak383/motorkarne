@@ -87,4 +87,21 @@ describe('ReviewsContext', () => {
 
     expect(result.current.getAverageRating('motor-avg')).toBe(3);
   });
+
+  it('deleteReviewsByUser removes only that user\'s reviews (called on account deletion)', () => {
+    const { result } = renderHook(() => useReviews(), { wrapper });
+
+    act(() => {
+      result.current.addReview({ motorId: 'motor-del', userId: 'to-delete', userName: 'Silinecek', rating: 5, comment: 'Silinecek yorum' });
+      result.current.addReview({ motorId: 'motor-del', userId: 'to-keep', userName: 'Kalacak', rating: 4, comment: 'Kalacak yorum' });
+    });
+
+    act(() => {
+      result.current.deleteReviewsByUser('to-delete');
+    });
+
+    const remaining = result.current.getReviewsForMotor('motor-del');
+    expect(remaining.some((r) => r.userId === 'to-delete')).toBe(false);
+    expect(remaining.some((r) => r.userId === 'to-keep')).toBe(true);
+  });
 });

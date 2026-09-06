@@ -121,6 +121,9 @@ export default function SifremiUnuttumScreen() {
                     placeholder="En az 6 karakter"
                     placeholderTextColor={colors.mutedForeground}
                     secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="newPassword"
                     value={newPassword}
                     onChangeText={setNewPassword}
                   />
@@ -143,6 +146,9 @@ export default function SifremiUnuttumScreen() {
                     placeholder="Şifrenizi tekrar girin"
                     placeholderTextColor={colors.mutedForeground}
                     secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="newPassword"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                   />

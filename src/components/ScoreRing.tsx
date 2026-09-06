@@ -17,7 +17,9 @@ export function ScoreRing({ score, size = 76, stroke = 6, color, max = 10 }: Pro
   const ringColor = color ?? themeColors.chart3;
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
-  const dash = Math.min(score / max, 1) * circ;
+  // Alt sınır da (0) korunuyor — negatif bir score değeri gelirse geçersiz
+  // (negatif) bir strokeDasharray oluşup halkanın hiç/yanlış çizilmesini önler.
+  const dash = Math.max(0, Math.min(score / max, 1)) * circ;
   return (
     <View style={[styles.wrap, { width: size, height: size }]}>
       <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>

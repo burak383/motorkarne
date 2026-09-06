@@ -1,31 +1,32 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import mobileAds, {
-  AdsConsent,
-  InterstitialAd,
-  RewardedAd,
-  AdEventType,
-  RewardedAdEventType,
-} from 'react-native-google-mobile-ads';
+import mobileAds, { AdsConsent, InterstitialAd, AdEventType } from 'react-native-google-mobile-ads';
 import { AD_UNIT_IDS, AD_CONFIG } from '../config/ads';
 import { usePurchases } from './PurchasesContext';
+import { useMembers } from './MembersContext';
 
-const AD_FREE_UNTIL_KEY = 'motorkarne_ad_free_until'; // ödüllü reklamdan gelen geçici süre (cihaz-yerel)
+// NOT: "Reklam izle, 30 gün reklamsız kullan" özelliği kaldırıldı — artık
+// reklamsız kullanım yalnızca aylık abonelik üzerinden sağlanıyor. Eski
+// sürümlerde bu bonusun hesaba özel diske yazıldığı anahtar öneki; artık yeni
+// bir bonus kazandırılmıyor, yalnızca hesap silinirken varsa eski/artık
+// kalıntı kaydı temizlemek için kullanılıyor (bkz. clearRewardedBonus).
+const LEGACY_AD_FREE_UNTIL_KEY_PREFIX = 'motorkarne_ad_free_until_';
 
 interface AdsContextType {
   isAdFree: boolean;
   isSubscriptionAdFree: boolean; // aylık abonelikten mi kaynaklanıyor (bilgilendirme metni için)
   adFreeRemainingLabel: string; // örn. "18 saat" ya da "27 gün"
   registerScreenView: () => void;
-  showRewardedAd: () => Promise<boolean>;
-  isRewardedAdReady: boolean;
   // GDPR/UMP: Kullanıcının onay akışı tamamlanıp reklam istenebilir mi (AB/İngiltere'de
   // onay formu gösterilmeden veya reddedilmişse false kalır). Onay tamamlanana kadar
-  // hiçbir reklam (banner/geçiş/ödüllü) istenmemeli — bkz. aşağıdaki useEffect.
+  // hiçbir reklam (banner/geçiş) istenmemeli — bkz. aşağıdaki useEffect.
   canRequestAds: boolean;
   // Kullanıcı kişiselleştirilmiş reklamlara onay vermediyse (ya da henüz bilinmiyorsa,
   // güvenli taraf) true — reklam isteklerinde requestNonPersonalizedAdsOnly olarak kullanılır.
   requestNonPersonalizedAdsOnly: boolean;
+  // Hesap silinirken çağrılır: bu hesabın (varsa eski) ödüllü reklam bonusu
+  // kaydını diskten kalıcı olarak kaldırır.
+  clearRewardedBonus: () => void;
 }
 
 const AdsContext = createContext<AdsContextType>({
@@ -33,10 +34,9 @@ const AdsContext = createContext<AdsContextType>({
   isSubscriptionAdFree: false,
   adFreeRemainingLabel: '',
   registerScreenView: () => {},
-  showRewardedAd: async () => false,
-  isRewardedAdReady: false,
   canRequestAds: false,
   requestNonPersonalizedAdsOnly: true,
+  clearRewardedBonus: () => {},
 });
 
 function formatRemaining(ms: number): string {
@@ -55,15 +55,14 @@ export const AdsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const { subscriptionAdFreeUntil } = usePurchases();
   const subscriptionUntil = subscriptionAdFreeUntil;
 
-  const [rewardedAdFreeUntil, setRewardedAdFreeUntil] = useState<number | null>(null);
+  const { currentUser } = useMembers();
+  const userId = currentUser?.id ?? null;
+
   const [now, setNow] = useState(Date.now());
-  const [isRewardedAdReady, setIsRewardedAdReady] = useState(false);
 
   const screenViewCount = useRef(0);
   const interstitialRef = useRef<InterstitialAd | null>(null);
   const isInterstitialLoaded = useRef(false);
-  const rewardedRef = useRef<RewardedAd | null>(null);
-  const rewardEarnedRef = useRef(false);
 
   // ---- GDPR/UMP: reklam SDK'sını başlatmadan/reklam istemeden ÖNCE onay akışını çalıştır ----
   // AB/İngiltere/İsviçre'deki kullanıcılara Google'ın UMP (User Messaging Platform) formu
@@ -107,31 +106,16 @@ export const AdsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Cihazda daha önce ödüllü reklamdan kazanılmış bir "reklamsız süre" var mı diye kontrol et.
-  useEffect(() => {
-    AsyncStorage.getItem(AD_FREE_UNTIL_KEY).then((raw) => {
-      if (raw) {
-        const until = parseInt(raw, 10);
-        if (!isNaN(until) && until > Date.now()) setRewardedAdFreeUntil(until);
-      }
-    });
-  }, []);
-
   // Kalan süre etiketinin (saat/gün) güncel kalması için periyodik tazeleme.
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(interval);
   }, []);
 
-  const isRewardedAdFreeActive = rewardedAdFreeUntil !== null && rewardedAdFreeUntil > now;
   const isSubscriptionAdFree = subscriptionUntil !== null && subscriptionUntil > now;
-  const isAdFree = isRewardedAdFreeActive || isSubscriptionAdFree;
+  const isAdFree = isSubscriptionAdFree;
 
-  // İki kaynaktan hangisi daha uzun süre kalıyorsa onu göster (kullanıcıya en iyimser bilgiyi ver).
-  const activeUntil = isSubscriptionAdFree && (!isRewardedAdFreeActive || subscriptionUntil! > rewardedAdFreeUntil!)
-    ? subscriptionUntil
-    : (isRewardedAdFreeActive ? rewardedAdFreeUntil : null);
-  const adFreeRemainingLabel = activeUntil ? formatRemaining(activeUntil - now) : '';
+  const adFreeRemainingLabel = isSubscriptionAdFree ? formatRemaining(subscriptionUntil! - now) : '';
 
   // ---- Geçiş reklamını önceden yükle ----
   const loadInterstitial = () => {
@@ -151,43 +135,14 @@ export const AdsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     interstitialRef.current = ad;
   };
 
-  // ---- Ödüllü reklamı önceden yükle ----
-  const loadRewarded = () => {
-    const ad = RewardedAd.createForAdRequest(AD_UNIT_IDS.rewarded, {
-      requestNonPersonalizedAdsOnly,
-    });
-    const unsubscribeLoaded = ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
-      setIsRewardedAdReady(true);
-    });
-    const unsubscribeEarned = ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
-      rewardEarnedRef.current = true;
-    });
-    const unsubscribeClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
-      setIsRewardedAdReady(false);
-      unsubscribeLoaded();
-      unsubscribeEarned();
-      unsubscribeClosed();
-      if (rewardEarnedRef.current) {
-        const until = Date.now() + AD_CONFIG.rewardedAdFreeDurationDays * 24 * 60 * 60 * 1000;
-        setRewardedAdFreeUntil(until);
-        AsyncStorage.setItem(AD_FREE_UNTIL_KEY, String(until)).catch(() => {});
-        rewardEarnedRef.current = false;
-      }
-      loadRewarded();
-    });
-    ad.load();
-    rewardedRef.current = ad;
-  };
-
   const adsInitializedRef = useRef(false);
   useEffect(() => {
     // GDPR onayı netleşmeden (canRequestAds === false) hiçbir reklam isteği atma.
     // Bir kere başlatıldıktan sonra tekrar tetiklenmesin diye ref ile kilitliyoruz —
-    // loadInterstitial/loadRewarded kapanış sonrası kendi kendini zaten yeniden yüklüyor.
+    // loadInterstitial kapanış sonrası kendi kendini zaten yeniden yüklüyor.
     if (!canRequestAds || adsInitializedRef.current) return;
     adsInitializedRef.current = true;
     loadInterstitial();
-    loadRewarded();
   }, [canRequestAds]);
 
   const registerScreenView = () => {
@@ -201,14 +156,12 @@ export const AdsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const showRewardedAd = async (): Promise<boolean> => {
-    if (!isRewardedAdReady || !rewardedRef.current) return false;
-    try {
-      await rewardedRef.current.show();
-      return true;
-    } catch {
-      return false;
-    }
+  // "Reklam izle, 30 gün reklamsız kullan" özelliği kaldırıldığı için artık yeni
+  // bir bonus kazandırılmıyor — bu yalnızca hesap silinirken varsa ESKİ
+  // sürümlerden kalma diskteki kaydı temizlemek için tutuluyor.
+  const clearRewardedBonus = () => {
+    if (!userId) return;
+    AsyncStorage.removeItem(LEGACY_AD_FREE_UNTIL_KEY_PREFIX + userId).catch(() => {});
   };
 
   return (
@@ -218,10 +171,9 @@ export const AdsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isSubscriptionAdFree,
         adFreeRemainingLabel,
         registerScreenView,
-        showRewardedAd,
-        isRewardedAdReady,
         canRequestAds,
         requestNonPersonalizedAdsOnly,
+        clearRewardedBonus,
       }}
     >
       {children}

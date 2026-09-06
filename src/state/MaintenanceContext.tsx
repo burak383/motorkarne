@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useMembers } from './MembersContext';
 
 export interface VehicleMaintenanceRecord {
   vehicleId: string;
@@ -14,9 +15,16 @@ interface MaintenanceContextType {
   updateCurrentKm: (vehicleId: string, currentKm: number) => void;
   recordOilChange: (vehicleId: string, atKm?: number) => void;
   removeRecord: (vehicleId: string) => void;
+  // Hesap silinirken çağrılır: bu hesaba ait tüm bakım kayıtlarını diskten de
+  // kalıcı olarak kaldırır (yalnızca in-memory state'i boşaltmakla kalmaz).
+  clearAll: () => void;
 }
 
-const STORAGE_KEY = 'motorkarne_maintenance';
+// Kilometre/bakım kayıtları, cihaza değil HESABA bağlıdır: anahtarın sonuna
+// giriş yapan üyenin id'si eklenir. Böylece (a) giriş yapılmadan önce kayıt
+// tutulmaz ve (b) aynı cihazda farklı hesaplarla giriş yapıldığında her hesap
+// yalnızca kendi araçlarının bakım bilgisini görür (bkz. FavoritesContext).
+const STORAGE_KEY_PREFIX = 'motorkarne_maintenance_';
 
 const MaintenanceContext = createContext<MaintenanceContextType>({
   records: {},
@@ -24,11 +32,12 @@ const MaintenanceContext = createContext<MaintenanceContextType>({
   updateCurrentKm: () => {},
   recordOilChange: () => {},
   removeRecord: () => {},
+  clearAll: () => {},
 });
 
-const loadSaved = async (): Promise<Record<string, VehicleMaintenanceRecord>> => {
+const loadSaved = async (key: string): Promise<Record<string, VehicleMaintenanceRecord>> => {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    const raw = await AsyncStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') return parsed;
@@ -39,24 +48,41 @@ const loadSaved = async (): Promise<Record<string, VehicleMaintenanceRecord>> =>
   return {};
 };
 
-const persist = (records: Record<string, VehicleMaintenanceRecord>) => {
-  AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(records)).catch(() => {
+const persist = (key: string, records: Record<string, VehicleMaintenanceRecord>) => {
+  AsyncStorage.setItem(key, JSON.stringify(records)).catch(() => {
     // Depolama kotası dolu vb. durumlarda sessizce yok say
   });
 };
 
 export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser } = useMembers();
+  const userId = currentUser?.id ?? null;
+
   const [records, setRecords] = useState<Record<string, VehicleMaintenanceRecord>>({});
 
   useEffect(() => {
+    if (!userId) {
+      // Giriş yapılmamış: bakım kayıtları her zaman boştur, diskten bir şey
+      // okunmaz (misafir moduna ait ortak/kalıcı bir kayıt yok).
+      setRecords({});
+      return;
+    }
+
+    let cancelled = false;
     (async () => {
-      setRecords(await loadSaved());
+      const saved = await loadSaved(STORAGE_KEY_PREFIX + userId);
+      if (!cancelled) setRecords(saved);
     })();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const getRecord = (vehicleId: string) => records[vehicleId];
 
   const updateCurrentKm = (vehicleId: string, currentKm: number) => {
+    if (!userId) return; // Kaydetmek için giriş yapılmış olmalı
     setRecords((prev) => {
       const existing = prev[vehicleId];
       const next = {
@@ -70,12 +96,13 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
           lastUpdated: new Date().toISOString(),
         },
       };
-      persist(next);
+      persist(STORAGE_KEY_PREFIX + userId, next);
       return next;
     });
   };
 
   const recordOilChange = (vehicleId: string, atKm?: number) => {
+    if (!userId) return;
     setRecords((prev) => {
       const existing = prev[vehicleId];
       if (!existing) return prev;
@@ -84,22 +111,29 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         ...prev,
         [vehicleId]: { ...existing, lastOilChangeKm: km, lastUpdated: new Date().toISOString() },
       };
-      persist(next);
+      persist(STORAGE_KEY_PREFIX + userId, next);
       return next;
     });
   };
 
   const removeRecord = (vehicleId: string) => {
+    if (!userId) return;
     setRecords((prev) => {
       const next = { ...prev };
       delete next[vehicleId];
-      persist(next);
+      persist(STORAGE_KEY_PREFIX + userId, next);
       return next;
     });
   };
 
+  const clearAll = () => {
+    if (!userId) return;
+    setRecords({});
+    AsyncStorage.removeItem(STORAGE_KEY_PREFIX + userId).catch(() => {});
+  };
+
   return (
-    <MaintenanceContext.Provider value={{ records, getRecord, updateCurrentKm, recordOilChange, removeRecord }}>
+    <MaintenanceContext.Provider value={{ records, getRecord, updateCurrentKm, recordOilChange, removeRecord, clearAll }}>
       {children}
     </MaintenanceContext.Provider>
   );

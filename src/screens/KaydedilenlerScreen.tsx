@@ -135,12 +135,17 @@ export default function KaydedilenlerScreen() {
   const maintenanceVehicle = maintenanceVehicleId
     ? savedVehicleData.find((v) => v.id === maintenanceVehicleId)
     : undefined;
+  // NOT: `|| 0` yerine isNaN kontrolü kullanılıyor — kullanıcı kilometre alanına
+  // gerçekten "0" yazdığında (örn. sıfır km'lik yeni bir araç), `||` bunu
+  // "boş" sayıp eski kayıtlı kilometreyi göstermeye devam ediyordu.
+  const typedKm = parseInt(kmInput, 10);
+  const previewKm = !isNaN(typedKm) ? typedKm : (getRecord(maintenanceVehicle?.id ?? '')?.currentKm ?? 0);
   const maintenanceStatus =
     maintenanceVehicle?.motor && !isElectric(maintenanceVehicle.motor)
       ? getMaintenanceStatus(
           maintenanceVehicle.motor,
-          parseInt(kmInput, 10) || getRecord(maintenanceVehicle.id)?.currentKm || 0,
-          getRecord(maintenanceVehicle.id)?.lastOilChangeKm ?? (parseInt(kmInput, 10) || 0)
+          previewKm,
+          getRecord(maintenanceVehicle.id)?.lastOilChangeKm ?? (!isNaN(typedKm) ? typedKm : 0)
         )
       : null;
 
@@ -269,7 +274,7 @@ export default function KaydedilenlerScreen() {
                 const cRisk = getRiskInfo(cScore);
                 const cRiskColor = colors[cRisk.colorKey];
                 return (
-                <TouchableOpacity key={c.name} style={s.smallCard} activeOpacity={0.9} onPress={() => nav.navigate('MotorVeAracDetay', { motorId: c.motorId })}>
+                <TouchableOpacity key={c.id} style={s.smallCard} activeOpacity={0.9} onPress={() => nav.navigate('MotorVeAracDetay', { motorId: c.motorId })}>
                   <View style={s.smallHero}>
                     <View style={[s.smallRiskTag, { backgroundColor: rgba(cRiskColor, 0.15) }]}>
                       <Text style={[s.smallRiskText, { color: cRiskColor }]}>{cRisk.label}</Text>
@@ -392,7 +397,7 @@ export default function KaydedilenlerScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={[s.emptyBox, hasItems && { display: 'none' }]}>
+            <View style={[s.emptyBox, (hasItems || savedComparisons.length > 0) && { display: 'none' }]}>
               <View style={s.emptyIcon}>
                 <BookmarkPlus size={20} color={colors.mutedForeground} />
               </View>

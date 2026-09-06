@@ -111,6 +111,9 @@ export default function GirisYapScreen() {
                 placeholder="Şifreniz"
                 placeholderTextColor={colors.mutedForeground}
                 secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="password"
                 value={password}
                 onChangeText={setPassword}
               />

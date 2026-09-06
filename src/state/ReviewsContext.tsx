@@ -23,8 +23,20 @@ interface ReviewsContextType {
   getReviewsForMotor: (motorId: string) => Review[];
   getAverageRating: (motorId: string) => number | null;
   addReview: (input: { motorId: string; userId: string; userName: string; rating: number; comment: string; photoUri?: string }) => AddReviewResult;
+  // Hesap silinirken çağrılır: bu kullanıcının yazdığı tüm yorumları kaldırır.
+  // (Yorumlar başka kullanıcılara da görünen genel/ortak bir liste olduğu için
+  // bu liste hesaba göre AYRIŞTIRILMAZ — bkz. STORAGE_KEY yorumu altta; ama
+  // hesap silindiğinde o kullanıcıya ait yorumların kalıcı olarak silinmesi
+  // gerekir.)
+  deleteReviewsByUser: (userId: string) => void;
 }
 
+// NOT: Bu depo BİLEREK tüm hesaplar için tek/ortak (global) — yorumlar her
+// kullanıcıya görünen genel bir katalog içeriğidir (her Review kendi
+// userId/userName'ini taşır), FavoritesContext/MaintenanceContext gibi kişiye
+// özel veri değildir. Hesap silindiğinde ilgili kullanıcının yorumlarını
+// kaldırmak için deleteReviewsByUser kullanılır (bkz. MembersContext.deleteAccount
+// çağrısını yapan ekran).
 const STORAGE_KEY = 'motorkarne_reviews';
 
 const loadSaved = async (): Promise<Review[]> => {
@@ -51,6 +63,7 @@ const ReviewsContext = createContext<ReviewsContextType>({
   getReviewsForMotor: () => [],
   getAverageRating: () => null,
   addReview: () => ({ success: false, error: 'ReviewsProvider bulunamadı' }),
+  deleteReviewsByUser: () => {},
 });
 
 export const ReviewsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -100,8 +113,16 @@ export const ReviewsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return { success: true, review: newReview };
   };
 
+  const deleteReviewsByUser = (userId: string) => {
+    setReviews((prev) => {
+      const next = prev.filter((r) => r.userId !== userId);
+      if (next.length !== prev.length) persist(next);
+      return next;
+    });
+  };
+
   return (
-    <ReviewsContext.Provider value={{ reviews, getReviewsForMotor, getAverageRating, addReview }}>
+    <ReviewsContext.Provider value={{ reviews, getReviewsForMotor, getAverageRating, addReview, deleteReviewsByUser }}>
       {children}
     </ReviewsContext.Provider>
   );

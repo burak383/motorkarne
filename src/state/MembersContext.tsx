@@ -188,7 +188,13 @@ export const MembersProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (isEmailTaken(email)) {
       return { success: false, error: 'Bu e-posta adresiyle zaten bir üyelik mevcut.' };
     }
-    if (input.password.length < 6) {
+    // ÖNEMLİ: Şifrenin başında/sonunda klavye/otomatik tamamlama kaynaklı
+    // fark edilmeyen bir boşluk kalırsa (secureTextEntry nedeniyle kullanıcı
+    // bunu göremez), kayıt sırasında eşleşen şifre daha sonra girişte
+    // eşleşmeyebilir ("E-posta veya şifre hatalı" hatası). Bu yüzden şifreyi
+    // baştan/sondan boşluklardan arındırıyoruz (aradaki boşluklara dokunulmaz).
+    const trimmedPassword = input.password.trim();
+    if (trimmedPassword.length < 6) {
       return { success: false, error: 'Şifre en az 6 karakter olmalıdır.' };
     }
 
@@ -197,7 +203,7 @@ export const MembersProvider: React.FC<{ children: React.ReactNode }> = ({ child
       fullName,
       email,
       phone,
-      password: input.password,
+      password: trimmedPassword,
       createdAt: new Date().toLocaleDateString('tr-TR'),
     };
 
@@ -215,9 +221,24 @@ export const MembersProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const login = (email: string, password: string): AuthResult => {
     const normalized = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
     const match = members.find((m) => m.email.toLowerCase() === normalized);
 
-    if (!match || match.password !== password) {
+    // Google/Facebook ile oluşturulmuş hesapların şifresi yok (bkz. yukarıdaki
+    // loginWithProvider — password: ''). Böyle bir hesapla e-posta/şifre formundan
+    // giriş denenirse önceden genel "E-posta veya şifre hatalı." mesajı gösteriliyordu
+    // — bu, kullanıcıyı hesabının var olduğunu ama şifresini unuttuğunu düşünmeye
+    // sevk edip kafa karıştırıyordu. Bu hesabın nasıl oluşturulduğunu açıkça belirtip
+    // doğru giriş yöntemine yönlendiriyoruz.
+    if (match && match.password === '' && match.provider && match.provider !== 'email') {
+      const providerLabel = match.provider === 'google' ? 'Google' : 'Facebook';
+      return {
+        success: false,
+        error: `Bu hesap ${providerLabel} ile oluşturulmuş, şifresi yok. Lütfen "${providerLabel} ile devam et" seçeneğini kullanın.`,
+      };
+    }
+
+    if (!match || match.password !== trimmedPassword) {
       return { success: false, error: 'E-posta veya şifre hatalı.' };
     }
 
@@ -283,6 +304,11 @@ export const MembersProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!currentUser) {
       return { success: false, error: 'Önce giriş yapmalısınız.' };
     }
+    // registerMember boş bir Ad Soyad'ı reddediyor, ama burada aynı kontrol
+    // yoktu — kullanıcı profil düzenlerken adı boşaltıp kaydedebiliyordu.
+    if (updates.fullName !== undefined && !updates.fullName.trim()) {
+      return { success: false, error: 'Ad Soyad alanı zorunludur.' };
+    }
     const nextEmail = updates.email?.trim() ?? currentUser.email;
     if (updates.email !== undefined && !EMAIL_REGEX.test(nextEmail)) {
       return { success: false, error: 'Geçerli bir e-posta adresi girin.' };
@@ -326,18 +352,20 @@ export const MembersProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!currentUser) {
       return { success: false, error: 'Önce giriş yapmalısınız.' };
     }
-    if (currentUser.password !== currentPassword) {
+    const trimmedCurrent = currentPassword.trim();
+    const trimmedNew = newPassword.trim();
+    if (currentUser.password !== trimmedCurrent) {
       return { success: false, error: 'Mevcut şifreniz yanlış.' };
     }
-    if (newPassword.length < 6) {
+    if (trimmedNew.length < 6) {
       return { success: false, error: 'Yeni şifre en az 6 karakter olmalı.' };
     }
-    if (newPassword === currentPassword) {
+    if (trimmedNew === trimmedCurrent) {
       return { success: false, error: 'Yeni şifre, mevcut şifreyle aynı olamaz.' };
     }
 
     setMembers((prev) => {
-      const next = prev.map((m) => (m.id === currentUser.id ? { ...m, password: newPassword } : m));
+      const next = prev.map((m) => (m.id === currentUser.id ? { ...m, password: trimmedNew } : m));
       persistMembers(next);
       return next;
     });
@@ -347,17 +375,18 @@ export const MembersProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const resetPassword = (email: string, newPassword: string): AuthResult => {
     const normalized = email.trim().toLowerCase();
+    const trimmedNew = newPassword.trim();
     const match = members.find((m) => m.email.toLowerCase() === normalized);
 
     if (!match) {
       return { success: false, error: 'Bu e-posta adresiyle kayıtlı bir üyelik bulunamadı.' };
     }
-    if (newPassword.length < 6) {
+    if (trimmedNew.length < 6) {
       return { success: false, error: 'Şifre en az 6 karakter olmalıdır.' };
     }
 
     setMembers((prev) => {
-      const next = prev.map((m) => (m.id === match.id ? { ...m, password: newPassword } : m));
+      const next = prev.map((m) => (m.id === match.id ? { ...m, password: trimmedNew } : m));
       persistMembers(next);
       return next;
     });

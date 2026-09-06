@@ -86,14 +86,22 @@ export default function KarsilastirScreen() {
     setSettingsOpen(true);
   };
 
+  // NOT: `parseInt(...) || fallback` yerine isNaN kontrolü kullanılıyor —
+  // kullanıcı bir alana gerçekten "0" yazdığında `||` bunu boşmuş gibi
+  // sayıp sessizce eski değere dönüyordu (hiçbir uyarı göstermeden).
+  const parseOr = (raw: string, fallback: number) => {
+    const n = parseFloat(raw);
+    return isNaN(n) ? fallback : n;
+  };
+
   const saveSettings = () => {
-    setAnnualKm(parseInt(kmInput, 10) || 15000);
+    setAnnualKm(parseOr(kmInput, 15000));
     updatePricing({
       fuelPrices: {
-        benzin: parseFloat(benzinInput) || pricing.fuelPrices.benzin,
-        dizel: parseFloat(dizelInput) || pricing.fuelPrices.dizel,
-        lpg: parseFloat(lpgInput) || pricing.fuelPrices.lpg,
-        elektrikKwh: parseFloat(elektrikInput) || pricing.fuelPrices.elektrikKwh,
+        benzin: parseOr(benzinInput, pricing.fuelPrices.benzin),
+        dizel: parseOr(dizelInput, pricing.fuelPrices.dizel),
+        lpg: parseOr(lpgInput, pricing.fuelPrices.lpg),
+        elektrikKwh: parseOr(elektrikInput, pricing.fuelPrices.elektrikKwh),
       },
     });
     setSettingsOpen(false);
@@ -282,10 +290,10 @@ export default function KarsilastirScreen() {
               <View
                 style={[
                   s.riskBadge,
-                  { backgroundColor: rgba(riskWinner ? colors.success : colors.chart3, 0.15) },
+                  { backgroundColor: rgba(overallWinner ? colors.success : colors.chart3, 0.15) },
                 ]}
               >
-                <Text style={[s.riskBadgeText, { color: riskWinner ? colors.success : colors.chart3 }]}>
+                <Text style={[s.riskBadgeText, { color: overallWinner ? colors.success : colors.chart3 }]}>
                   {overallWinner ? `${overallWinner.name} öne çıkıyor` : 'Denk'}
                 </Text>
               </View>

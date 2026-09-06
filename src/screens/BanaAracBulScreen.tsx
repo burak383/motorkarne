@@ -82,15 +82,19 @@ export default function BanaAracBulScreen() {
     scrollViewRef.current?.scrollTo({ y: 0, animated: true });
   };
 
+  // NOT: `catalogVehicles` bağımlılık dizilerine eklendi — CatalogContext/VehicleContext
+  // araç listesini ağdan asenkron çektiği ve arka planda periyodik yenilediği için,
+  // bu dizi eksikse marka/model seçenekleri ve sonuçlar ilk render'daki (boş/eski)
+  // veriye kilitlenip kalıyor, yeni veri geldiğinde güncellenmiyordu.
   const brandOptions = useMemo(
     () => Array.from(new Set(catalogVehicles.map((v) => v.brand))).sort((a, b) => a.localeCompare(b, 'tr')),
-    []
+    [catalogVehicles]
   );
 
   const modelOptions = useMemo(() => {
     const list = selectedBrand ? catalogVehicles.filter((v) => v.brand === selectedBrand) : catalogVehicles;
     return [...list].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-  }, [selectedBrand]);
+  }, [catalogVehicles, selectedBrand]);
 
   const selectedModel = selectedModelId ? catalogVehicles.find((v) => v.id === selectedModelId) : undefined;
 
@@ -131,7 +135,7 @@ export default function BanaAracBulScreen() {
         return true;
       })
       .sort((a, b) => b.motor.score - a.motor.score);
-  }, [selectedBrand, selectedModelId, selectedFuel, selectedTransmission, selectedRisk, getMotorById]);
+  }, [catalogVehicles, selectedBrand, selectedModelId, selectedFuel, selectedTransmission, selectedRisk, getMotorById]);
 
   const activeFilterCount = [selectedBrand, selectedModelId, selectedFuel, selectedTransmission, selectedRisk].filter(Boolean).length;
 

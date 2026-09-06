@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sendPushNotification } from '../utils/pushNotifications';
+import { useMembers } from './MembersContext';
 
 export interface AppNotification {
   id: string;
@@ -15,9 +16,15 @@ interface NotificationsContextType {
   unreadCount: number;
   addNotification: (title: string, body: string) => void;
   markAllRead: () => void;
+  // Hesap silinirken çağrılır: bu hesabın bildirim geçmişini diskten de
+  // kalıcı olarak kaldırır.
+  clearAll: () => void;
 }
 
-const STORAGE_KEY = 'motorkarne_notifications';
+// Bildirimler, cihaza değil HESABA bağlıdır: anahtarın sonuna giriş yapan
+// üyenin id'si eklenir. Böylece farklı hesaplarla giriş yapıldığında her
+// hesap yalnızca kendi bildirim geçmişini görür (bkz. FavoritesContext).
+const STORAGE_KEY_PREFIX = 'motorkarne_notifications_';
 
 const DEFAULT_NOTIFICATIONS: AppNotification[] = [
   {
@@ -29,9 +36,9 @@ const DEFAULT_NOTIFICATIONS: AppNotification[] = [
   },
 ];
 
-const loadSaved = async (): Promise<AppNotification[]> => {
+const loadSaved = async (key: string): Promise<AppNotification[] | null> => {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    const raw = await AsyncStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed;
@@ -39,11 +46,11 @@ const loadSaved = async (): Promise<AppNotification[]> => {
   } catch (e) {
     // Bozuk veri varsa sessizce yok say
   }
-  return DEFAULT_NOTIFICATIONS;
+  return null;
 };
 
-const persist = (items: AppNotification[]) => {
-  AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(items)).catch(() => {
+const persist = (key: string, items: AppNotification[]) => {
+  AsyncStorage.setItem(key, JSON.stringify(items)).catch(() => {
     // Depolama kotası dolu vb. durumlarda sessizce yok say
   });
 };
@@ -53,16 +60,33 @@ const NotificationsContext = createContext<NotificationsContextType>({
   unreadCount: 0,
   addNotification: () => {},
   markAllRead: () => {},
+  clearAll: () => {},
 });
 
 export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser } = useMembers();
+  const userId = currentUser?.id ?? null;
+
   const [notifications, setNotifications] = useState<AppNotification[]>(DEFAULT_NOTIFICATIONS);
 
   useEffect(() => {
+    if (!userId) {
+      // Giriş yapılmamış: sadece hoş geldin bildirimi gösterilir, hiçbir
+      // hesabın bildirim geçmişi diskten okunmaz veya karışmaz.
+      setNotifications(DEFAULT_NOTIFICATIONS);
+      return;
+    }
+
+    let cancelled = false;
     (async () => {
-      setNotifications(await loadSaved());
+      const saved = await loadSaved(STORAGE_KEY_PREFIX + userId);
+      if (!cancelled) setNotifications(saved ?? DEFAULT_NOTIFICATIONS);
     })();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -76,7 +100,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
     };
     setNotifications((prev) => {
       const next = [newItem, ...prev];
-      persist(next);
+      if (userId) persist(STORAGE_KEY_PREFIX + userId, next);
       return next;
     });
     // Uygulama içi listeye ek olarak gerçek bir OS bildirimi de gönder
@@ -89,13 +113,19 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   const markAllRead = () => {
     setNotifications((prev) => {
       const next = prev.map((n) => ({ ...n, read: true }));
-      persist(next);
+      if (userId) persist(STORAGE_KEY_PREFIX + userId, next);
       return next;
     });
   };
 
+  const clearAll = () => {
+    if (!userId) return;
+    setNotifications(DEFAULT_NOTIFICATIONS);
+    AsyncStorage.removeItem(STORAGE_KEY_PREFIX + userId).catch(() => {});
+  };
+
   return (
-    <NotificationsContext.Provider value={{ notifications, unreadCount, addNotification, markAllRead }}>
+    <NotificationsContext.Provider value={{ notifications, unreadCount, addNotification, markAllRead, clearAll }}>
       {children}
     </NotificationsContext.Provider>
   );

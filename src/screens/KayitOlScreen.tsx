@@ -207,6 +207,9 @@ export default function KayitOlScreen() {
                   placeholder="En az 6 karakter"
                   placeholderTextColor={colors.mutedForeground}
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="newPassword"
                   value={password}
                   onChangeText={setPassword}
                 />
@@ -229,6 +232,9 @@ export default function KayitOlScreen() {
                   placeholder="Şifrenizi tekrar girin"
                   placeholderTextColor={colors.mutedForeground}
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="newPassword"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                 />
