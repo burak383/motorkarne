@@ -73,18 +73,12 @@ export function useGoogleSignIn(onSuccess: (profile: SocialProfile) => void, onE
         onError('Bu cihazda Google Play Hizmetleri bulunamadı.');
         return;
       }
-      // GEÇİCİ TANI AMAÇLI: Hata kodu/mesajı da gösteriliyor ki asıl nedeni
-      // (örn. DEVELOPER_ERROR / kod 10 → genelde SHA-1 ya da webClientId
-      // uyuşmazlığı) ekran görüntüsüyle tespit edebilelim. Kök neden
-      // netleşince bu satır tekrar sade "Google girişi başarısız oldu."
-      // mesajına döndürülebilir.
-      //
-      // ÖNEMLİ (geçici tanı): Alert.alert() logcat'e hiçbir şey yazmıyor —
-      // bu yüzden şimdiye kadarki logcat yakalamalarında gerçek hata objesi
-      // hiç görünmedi. console.error ile "MK_GOOGLE_SIGNIN_ERROR" etiketiyle
-      // logluyoruz ki `adb logcat | Select-String "MK_GOOGLE_SIGNIN_ERROR"`
-      // ile tam hata objesini (code, message, ve varsa diğer alanları)
-      // logcat'te görebilelim. Kök neden netleşince bu satır kaldırılabilir.
+      // TANI AMAÇLI LOG: Alert.alert() logcat'e hiçbir şey yazmıyor, bu yüzden
+      // gerçek hata objesini (code/message) görebilmek için console.error ile
+      // "MK_GOOGLE_SIGNIN_ERROR" etiketiyle de logluyoruz — bir sorun çıkarsa
+      // `adb logcat | Select-String "MK_GOOGLE_SIGNIN_ERROR"` ile görülebilir.
+      // Kullanıcıya ise artık ham hata kodu/mesajı DEĞİL, sade bir mesaj
+      // gösteriliyor (bkz. aşağıdaki onError çağrısı).
       try {
         const extraKeys = Object.getOwnPropertyNames(e || {}).filter(
           (k) => !['code', 'message', 'name', 'stack'].includes(k)
@@ -102,7 +96,7 @@ export function useGoogleSignIn(onSuccess: (profile: SocialProfile) => void, onE
       } catch (logErr) {
         console.error('MK_GOOGLE_SIGNIN_ERROR', 'stringify başarısız', String(e));
       }
-      onError(`Google girişi başarısız oldu. (kod: ${e?.code ?? '?'} — ${e?.message ?? 'detay yok'})`);
+      onError('Google girişi başarısız oldu. Lütfen tekrar deneyin.');
     }
   };
 
