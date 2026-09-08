@@ -5,8 +5,8 @@ import { AD_UNIT_IDS } from '../config/ads';
 import { useAds } from '../state/AdsContext';
 
 // 5 ana sekme ekranının (Keşfet, Katalog, Karşılaştır, Araç Bul, Kaydedilenler)
-// altına eklenen sabit banner reklam. Kullanıcı ödüllü reklam izleyip geçici
-// reklamsız moda geçtiyse (bkz. AdsContext), hiçbir şey render etmez.
+// altına eklenen sabit banner reklam. Kullanıcının aktif bir "Reklamsız
+// Deneyim" aboneliği varsa (bkz. AdsContext), hiçbir şey render etmez.
 export default function BannerAdSlot() {
   const { isAdFree, canRequestAds, requestNonPersonalizedAdsOnly } = useAds();
 

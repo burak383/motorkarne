@@ -32,8 +32,8 @@ export default function GirisYapScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSocialSuccess = (profile: Parameters<typeof loginWithProvider>[0]) => {
-    const result = loginWithProvider(profile);
+  const handleSocialSuccess = async (profile: Parameters<typeof loginWithProvider>[0]) => {
+    const result = await loginWithProvider(profile);
     if (!result.success) {
       Alert.alert('MotorKarne', result.error ?? t.loginFailed);
       return;
@@ -57,8 +57,8 @@ export default function GirisYapScreen() {
     promptGoogle();
   };
 
-  const handleLogin = () => {
-    const result = login(email, password);
+  const handleLogin = async () => {
+    const result = await login(email, password);
     if (!result.success) {
       Alert.alert('MotorKarne', result.error ?? t.loginFailed);
       return;

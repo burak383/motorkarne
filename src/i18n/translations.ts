@@ -112,7 +112,6 @@ export const translations = {
     engineStructureTitle: 'Motor bölmesi ve yapısı',
     tabProsCons: 'Artılar & Eksiler',
     tabTransmission: 'Şanzıman',
-    tabReviews: 'Yorumlar',
 
     // Kayıt Ol / Giriş Yap
     signupHeader: 'Kayıt Ol',
@@ -217,10 +216,6 @@ export const translations = {
     motDetayUstaBul: 'Bu sorunu bilen bir usta bul',
     motDetayKronikYok: 'Bu motor için bilinen kronik bir sorun kaydedilmemiş.',
     motDetaySanzimanTipi: 'Şanzıman tipi',
-    motDetayPuaniniz: 'Puanınız',
-    motDetayYorumuGonder: 'Yorumu Gönder',
-    motDetayYorumPlaceholder: 'Bu motorla ilgili deneyiminizi paylaşın...',
-    motDetayYorumYok: 'Bu motor için henüz kullanıcı yorumu bulunmuyor.',
     motDetaySatisSorusu: 'Bu motor kaç paraya satılıyor?',
     motDetayIlanAciklama: 'Güncel 2. el ilanlarını arabam.com ve sahibinden.com üzerinde canlı görüntüleyin.',
     motDetayArabamGor: "arabam.com'da gör",
@@ -344,7 +339,6 @@ export const translations = {
     engineStructureTitle: 'Engine bay and structure',
     tabProsCons: 'Pros & Cons',
     tabTransmission: 'Transmission',
-    tabReviews: 'Reviews',
 
     // Sign Up / Log In
     signupHeader: 'Sign Up',
@@ -449,10 +443,6 @@ export const translations = {
     motDetayUstaBul: 'Find a mechanic who knows this issue',
     motDetayKronikYok: 'No known chronic issue on record for this engine.',
     motDetaySanzimanTipi: 'Transmission type',
-    motDetayPuaniniz: 'Your Rating',
-    motDetayYorumuGonder: 'Submit Review',
-    motDetayYorumPlaceholder: 'Share your experience with this engine...',
-    motDetayYorumYok: 'No user reviews yet for this engine.',
     motDetaySatisSorusu: 'How much does this engine sell for?',
     motDetayIlanAciklama: 'View current used listings live on arabam.com and sahibinden.com.',
     motDetayArabamGor: 'View on arabam.com',

@@ -21,13 +21,14 @@
   <p class="updated">Son güncelleme: 5 Ağustos 2026</p>
 
   <div class="note">
-    <strong>Özet:</strong> Hesap bilgileriniz (ad, e-posta, telefon, şifre) ve uygulama içi
-    kişisel verileriniz (favoriler, karşılaştırmalar, yorumlar, bildirimler, profil fotoğrafı)
-    yalnızca kullandığınız cihazda saklanır; bu bilgiler MotorKarne'nın kendi sunucularına
-    gönderilmez. Motor/araç katalog verilerini (marka, model, teknik özellik, güvenilirlik
-    bilgisi gibi genel referans verileri — kişisel veri <strong>değildir</strong>) size
-    sunabilmek için uygulama, MotorKarne'nın kendi sunucu altyapısına bağlanır; bu bağlantı
-    sırasında hiçbir hesap veya kişisel veriniz bu sunucuya iletilmez. Ayrıca uygulama; Google
+    <strong>Özet:</strong> Hesap bilgileriniz (ad, e-posta, telefon numarası) MotorKarne'nın
+    kendi sunucusunda, şifrelenmiş bir bağlantı üzerinden güvenli şekilde saklanır; şifreniz
+    hiçbir zaman düz metin olarak tutulmaz, geri döndürülemeyecek şekilde (hash'lenerek)
+    saklanır. Uygulama içi bazı kişisel verileriniz (favoriler, karşılaştırmalar, bildirimler,
+    profil fotoğrafı) ise yalnızca kullandığınız cihazda saklanır ve MotorKarne'nın
+    sunucularına gönderilmez. Motor/araç katalog verilerini (marka, model, teknik özellik,
+    güvenilirlik bilgisi gibi genel referans verileri — kişisel veri <strong>değildir</strong>)
+    size sunabilmek için de uygulama aynı sunucu altyapısına bağlanır. Ayrıca uygulama; Google
     ile giriş, reklam gösterimi ve abonelik/satın alma işlemleri için Google ve RevenueCat gibi
     üçüncü taraf servis sağlayıcılar kullanır — bu servislere hangi verilerin, hangi amaçla
     iletildiği aşağıda ayrı başlıklar altında açıklanmıştır.
@@ -47,22 +48,27 @@
   yazdığınız yorumlar ve profil fotoğrafınız (galeriden seçtiğiniz) cihazınızda saklanır.</p>
 
   <h2>2. Verilerin Saklandığı Yer</h2>
-  <p><strong>Kişisel verileriniz</strong> (hesap bilgileriniz, favorileriniz, yorumlarınız, profil
-  fotoğrafınız) yalnızca cihazınızın yerel depolama alanında (AsyncStorage) tutulur. Bu nedenle:</p>
-  <ul>
-    <li>Bu veriler MotorKarne'nın kendi sunucularına gönderilmez.</li>
-    <li>Bu veriler MotorKarne tarafından hiçbir üçüncü tarafla paylaşılmaz veya satılmaz.</li>
-    <li>Uygulamayı cihazınızdan kaldırdığınızda (uninstall) bu veriler cihazınızdan kalıcı olarak silinir.</li>
-  </ul>
+  <p><strong>Hesap bilgileriniz</strong> (ad, e-posta, telefon numarası) MotorKarne'nın kendi
+  sunucusunda (bulut tabanlı bir veritabanında), şifrelenmiş bir bağlantı üzerinden saklanır.
+  Bu sayede aynı hesapla farklı cihazlardan giriş yapabilirsiniz. Şifreniz sunucuda asla düz
+  metin olarak tutulmaz; geri döndürülemeyecek şekilde (endüstri standardı bir yöntemle,
+  bcrypt ile) hash'lenerek saklanır — MotorKarne ekibi dahil kimse gerçek şifrenizi göremez.
+  Bu veriler MotorKarne tarafından hiçbir üçüncü tarafla paylaşılmaz veya satılmaz.</p>
+  <p><strong>Diğer uygulama içi kişisel verileriniz</strong> (favori araçlarınız, kaydettiğiniz
+  karşılaştırmalar, profil fotoğrafınız, bildirim ve tema/dil tercihleriniz) ise yalnızca
+  cihazınızın yerel depolama alanında (AsyncStorage) tutulur ve MotorKarne'nın sunucusuna
+  gönderilmez. Uygulamayı cihazınızdan kaldırdığınızda (uninstall) bu veriler cihazınızdan
+  kalıcı olarak silinir — ancak sunucuda saklanan hesap bilgileriniz bundan etkilenmez;
+  hesabınızı silmek için bkz. <a href="./delete-account.html">Hesap ve Veri Silme</a>.</p>
   <p>Aşağıdaki 3 ve 4. bölümlerde açıklanan reklam ve abonelik/satın alma verileri bu kapsamın
   <strong>dışındadır</strong> — onlar ilgili üçüncü taraf servis sağlayıcılara iletilir.</p>
   <p><strong>Motor/araç katalog verileri</strong> (marka, model, teknik özellik, güvenilirlik puanı,
-  bilinen arıza bilgisi gibi genel referans içerikleri) ise güncel kalabilmesi için MotorKarne'nın
-  kendi sunucusundan (bulut tabanlı bir veritabanından) çekilir. Bu veriler genel otomotiv bilgisidir,
-  sizinle veya hesabınızla ilişkilendirilmez ve kişisel veri niteliği taşımaz. Bu bağlantı sırasında,
-  internet üzerinden yapılan her istekte olduğu gibi cihazınızın IP adresi teknik olarak sunucu
-  altyapısından geçer; ancak bu bilgi normal kullanım sırasında ayrıca kaydedilmez veya sizinle
-  ilişkilendirilmez.</p>
+  bilinen arıza bilgisi gibi genel referans içerikleri) ise güncel kalabilmesi için aynı sunucu
+  altyapısından (bulut tabanlı bir veritabanından) çekilir. Bu veriler genel otomotiv bilgisidir,
+  sizinle veya hesabınızla ilişkilendirilmez ve kişisel veri niteliği taşımaz. Bu bağlantılar
+  sırasında, internet üzerinden yapılan her istekte olduğu gibi cihazınızın IP adresi teknik
+  olarak sunucu altyapısından geçer; ancak bu bilgi normal kullanım sırasında ayrıca kaydedilmez
+  veya sizinle ilişkilendirilmez.</p>
 
   <h2>2a. Teknik Güvenlik Kaydı (Denetim Günlüğü)</h2>
   <p>Katalog verisi yalnızca MotorKarne ekibi tarafından, yetkilendirilmiş bir yönetim paneli
@@ -96,15 +102,19 @@
 
   <h2>6. Verilerinizi Silme Hakkınız</h2>
   <p>KVKK ve ilgili veri koruma mevzuatı kapsamında verilerinizin silinmesini isteme hakkına
-  sahipsiniz. Profil bilgileriniz (ad, e-posta, telefon, şifre, favoriler, yorumlar, profil
-  fotoğrafı) için bunu iki şekilde yapabilirsiniz:</p>
+  sahipsiniz.</p>
   <ul>
-    <li><strong>Uygulama içinden:</strong> Profil → Hesabımı Sil.</li>
-    <li><strong>Uygulama dışından:</strong> Uygulamayı cihazınızdan kaldırmanız (uninstall), bu
-    verilerin cihazınızdan kalıcı olarak silinmesi için yeterlidir.</li>
+    <li><strong>Hesap bilgileriniz</strong> (ad, e-posta, telefon, şifre) sunucumuzda tutulduğu
+    için, bunları silmenin tek yolu uygulama içinden <strong>Profil → Hesabımı Sil</strong>
+    seçeneğini kullanmaktır — bu işlem sunucudaki kaydınızı kalıcı olarak siler. Uygulamayı
+    cihazınızdan kaldırmanız (uninstall) hesap kaydınızı <strong>silmez</strong>; hesabınız,
+    siz "Hesabımı Sil"i kullanana ya da bizimle iletişime geçene kadar sunucuda kalmaya devam eder.</li>
+    <li><strong>Yalnızca cihazınızda tutulan diğer verileriniz</strong> (favoriler, karşılaştırmalar,
+    profil fotoğrafı, bildirim/tema/dil tercihleri) için uygulamayı cihazınızdan kaldırmanız
+    (uninstall) bu verilerin cihazınızdan kalıcı olarak silinmesi için yeterlidir.</li>
   </ul>
   <p>3. ve 4. bölümlerde açıklanan reklam kimliği ve abonelik/satın alma kayıtları, ilgili üçüncü
-  taraf servis sağlayıcılarda (Google, RevenueCat) tutulduğu için yukarıdaki iki yöntemle otomatik
+  taraf servis sağlayıcılarda (Google, RevenueCat) tutulduğu için yukarıdaki yöntemlerle otomatik
   silinmez. Bu veriler için de silme talebinde bulunmak isterseniz aşağıdaki iletişim adresinden
   bize ulaşabilirsiniz, sizin adınıza ilgili servis sağlayıcıya iletelim.</p>
   <p>Ayrıntılı bilgi için bkz: <a href="./delete-account.html">Hesap ve Veri Silme</a>.</p>

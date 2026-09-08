@@ -19,15 +19,13 @@ import { useMembers } from '../state/MembersContext';
 
 type Nav = NativeStackNavigationProp<any>;
 
-// GÜVENLİK NOTU: Bu ekran gerçek bir e-posta doğrulaması YAPMAZ — uygulamanın hiçbir
-// e-posta/SMS gönderme altyapısı yok (MembersContext tamamen cihaz-yerel AsyncStorage
-// kullanıyor, bkz. src/state/MembersContext.tsx). "handleVerifyEmail" sadece girilen
-// e-postanın BU CİHAZDA kayıtlı olup olmadığını kontrol eder; kimliğin gerçekten o
-// kişiye ait olduğunu doğrulamaz. Pratikte risk sınırlıdır çünkü hesaplar cihazlar
-// arasında senkronize olmuyor (bir hesabı ele geçirmek için aynı fiziksel cihaza erişim
-// gerekir), ancak arayüz metninin bunu "doğrulama" olarak sunmaması için özellikle
-// nötr bir dil kullanılmıştır. Gerçek bir doğrulama için backend'e bir e-posta gönderme
-// servisi (örn. SendGrid) ve tek kullanımlık kod/link akışı eklenmesi gerekir.
+// GÜVENLİK NOTU: Bu ekran gerçek bir e-posta doğrulaması YAPMAZ — kod/link göndermez.
+// "handleVerifyEmail" artık sunucudaki (TiDB destekli motorkarne-api) üyelik kaydını
+// kontrol eder (bkz. src/state/MembersContext.tsx -> isEmailTaken, GET /api/auth/check-email),
+// ama girilen e-postanın gerçekten o kişiye ait olduğunu doğrulamaz — yalnızca böyle bir
+// hesabın var olup olmadığını söyler. Arayüz metninin bunu "doğrulama" olarak sunmaması
+// için özellikle nötr bir dil kullanılmıştır. Gerçek bir doğrulama için backend'e bir
+// e-posta gönderme servisi (örn. SendGrid) ve tek kullanımlık kod/link akışı eklenmesi gerekir.
 export default function SifremiUnuttumScreen() {
   const nav = useNavigation<Nav>();
   const { themeColors: colors } = useTheme();
@@ -40,20 +38,20 @@ export default function SifremiUnuttumScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
 
-  const handleVerifyEmail = () => {
-    if (!isEmailTaken(email)) {
+  const handleVerifyEmail = async () => {
+    if (!(await isEmailTaken(email))) {
       Alert.alert('MotorKarne', 'Bu e-posta adresiyle kayıtlı bir üyelik bulunamadı.');
       return;
     }
     setEmailVerified(true);
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (newPassword !== confirmPassword) {
       Alert.alert('MotorKarne', 'Girdiğiniz şifreler birbiriyle uyuşmuyor.');
       return;
     }
-    const result = resetPassword(email, newPassword);
+    const result = await resetPassword(email, newPassword);
     if (!result.success) {
       Alert.alert('MotorKarne', result.error ?? 'Şifre sıfırlanamadı.');
       return;
@@ -83,8 +81,8 @@ export default function SifremiUnuttumScreen() {
           <Text style={s.introTitle}>Şifrenizi Sıfırlayın</Text>
           <Text style={s.introSub}>
             {emailVerified
-              ? 'Bu cihazda bu e-postayla kayıtlı bir hesap bulundu. Şimdi yeni bir şifre belirleyin.'
-              : 'Bu cihazda kayıtlı e-posta adresinizi girin.'}
+              ? 'Bu e-postayla kayıtlı bir hesap bulundu. Şimdi yeni bir şifre belirleyin.'
+              : 'Kayıtlı e-posta adresinizi girin.'}
           </Text>
         </View>
 

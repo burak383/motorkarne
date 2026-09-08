@@ -54,7 +54,7 @@ import { useMaintenance } from '../state/MaintenanceContext';
 import { useNotifications } from '../state/NotificationsContext';
 import { useAds } from '../state/AdsContext';
 import { confirmAction } from '../utils/confirm';
-import RewardedAdPrompt from '../components/RewardedAdPrompt';
+import AdFreeCard from '../components/AdFreeCard';
 
 type Nav = NativeStackNavigationProp<any>;
 
@@ -87,12 +87,12 @@ export default function ProfilScreen() {
     setConfirmPasswordInput('');
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (newPasswordInput !== confirmPasswordInput) {
       Alert.alert('MotorKarne', 'Yeni şifreler birbiriyle eşleşmiyor.');
       return;
     }
-    const result = changePassword(currentPasswordInput, newPasswordInput);
+    const result = await changePassword(currentPasswordInput, newPasswordInput);
     if (!result.success) {
       Alert.alert('MotorKarne', result.error ?? 'Şifre değiştirilemedi.');
       return;
@@ -122,8 +122,8 @@ export default function ProfilScreen() {
     setIsEditing(true);
   };
 
-  const handleSave = () => {
-    const result = updateCurrentUser({ fullName: tempName, email: tempEmail, phone: tempPhone });
+  const handleSave = async () => {
+    const result = await updateCurrentUser({ fullName: tempName, email: tempEmail, phone: tempPhone });
     if (!result.success) {
       Alert.alert('MotorKarne', result.error ?? 'Bilgiler kaydedilemedi.');
       return;
@@ -145,7 +145,7 @@ export default function ProfilScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      updateCurrentUser({ avatarUri: result.assets[0].uri });
+      await updateCurrentUser({ avatarUri: result.assets[0].uri });
     }
   };
 
@@ -162,8 +162,8 @@ export default function ProfilScreen() {
     confirmAction(
       t.logout,
       language === 'tr' ? 'Çıkış yapmak istediğinize emin misiniz?' : 'Are you sure you want to log out?',
-      () => {
-        logout();
+      async () => {
+        await logout();
         setIsEditing(false);
       },
       { confirmText: t.logout, cancelText: t.cancel }
@@ -174,7 +174,7 @@ export default function ProfilScreen() {
     confirmAction(
       'Hesabı Sil',
       'Hesabınız ve tüm bilgileriniz kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam etmek istediğinize emin misiniz?',
-      () => {
+      async () => {
         // ÖNEMLİ: MembersContext.deleteAccount() yalnızca üye kaydını (ad/e-posta/
         // şifre) siler — favoriler, karşılaştırmalar, bakım kayıtları, bildirimler,
         // ödüllü reklam bonusu, yerel abonelik önbelleği ve yorumlar AYRI context'lerde
@@ -191,7 +191,7 @@ export default function ProfilScreen() {
           clearLocalAdFreeCache();
           deleteReviewsByUser(currentUser.id);
         }
-        deleteAccount();
+        await deleteAccount();
         setIsEditing(false);
       },
       { confirmText: 'Hesabımı Sil', cancelText: t.cancel }
@@ -284,7 +284,7 @@ export default function ProfilScreen() {
                 <Text style={s.profileSub}>{mode === 'dark' ? t.darkModeActive : t.lightModeActive}</Text>
               </View>
 
-              <RewardedAdPrompt />
+              <AdFreeCard />
 
               {/* Form Kartı */}
               <View style={s.formCard}>

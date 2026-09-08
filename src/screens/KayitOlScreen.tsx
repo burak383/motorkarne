@@ -22,7 +22,6 @@ import {
   Eye,
   EyeOff,
   UserPlus,
-  Users,
   ArrowUp,
   Check,
 } from 'lucide-react-native';
@@ -41,10 +40,10 @@ export default function KayitOlScreen() {
   const { themeColors: colors } = useTheme();
   const s = useMemo(() => getStyles(colors), [colors]);
   const { language, t } = useLanguage();
-  const { members, registerMember, loginWithProvider } = useMembers();
+  const { registerMember, loginWithProvider } = useMembers();
 
-  const handleSocialSuccess = (profile: Parameters<typeof loginWithProvider>[0]) => {
-    const result = loginWithProvider(profile);
+  const handleSocialSuccess = async (profile: Parameters<typeof loginWithProvider>[0]) => {
+    const result = await loginWithProvider(profile);
     if (!result.success) {
       Alert.alert('MotorKarne', result.error ?? 'Giriş başarısız oldu.');
       return;
@@ -87,7 +86,7 @@ export default function KayitOlScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!consentAccepted) {
       Alert.alert('MotorKarne', 'Devam etmek için Gizlilik Politikası, KVKK Aydınlatma Metni ve Kullanım Şartları\'nı onaylamanız gerekir.');
       return;
@@ -97,7 +96,7 @@ export default function KayitOlScreen() {
       return;
     }
 
-    const result = registerMember({ fullName, email, phone, password });
+    const result = await registerMember({ fullName, email, phone, password });
 
     if (!result.success) {
       Alert.alert('MotorKarne', result.error ?? 'Kayıt oluşturulamadı.');
@@ -281,35 +280,6 @@ export default function KayitOlScreen() {
               <Text style={s.switchLinkText}>{t.haveAccount}</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Kayıtlı üyeler */}
-          {members.length > 0 && (
-            <View style={s.membersSection}>
-              <View style={s.membersHeader}>
-                <Users size={16} color={colors.mutedForeground} />
-                <Text style={s.membersTitle}>{t.registeredMembers} ({members.length})</Text>
-              </View>
-              <View style={s.membersList}>
-                {members.map((m, i) => (
-                  <View key={m.id} style={[s.memberRow, i < members.length - 1 && s.memberRowBorder]}>
-                    <View style={s.memberAvatar}>
-                      <Text style={s.memberAvatarText}>
-                        {m.fullName.trim().charAt(0).toUpperCase() || '?'}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.memberName}>{m.fullName}</Text>
-                      <Text style={s.memberMeta} numberOfLines={1}>
-                        {m.email}
-                        {m.phone ? ` • ${m.phone}` : ''}
-                      </Text>
-                    </View>
-                    <Text style={s.memberDate}>{m.createdAt}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
         </ScrollView>
 
         {showScrollTop && (
@@ -433,30 +403,6 @@ const getStyles = (colors: any) =>
     googleBtn: { backgroundColor: colors.card, borderColor: colors.border },
     googleBtnText: { fontSize: 16, fontFamily: fonts.heading.bold, color: '#4285F4' },
     socialBtnText: { fontSize: 14, fontFamily: fonts.body.bold, color: colors.foreground },
-    membersSection: { marginHorizontal: 20, marginTop: 24 },
-    membersHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    membersTitle: { fontSize: 13, fontFamily: fonts.body.semibold, color: colors.mutedForeground },
-    membersList: {
-      borderRadius: radius,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.card,
-      overflow: 'hidden',
-    },
-    memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
-    memberRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-    memberAvatar: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: rgba(colors.primary, 0.15),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    memberAvatarText: { fontFamily: fonts.heading.bold, fontSize: 14, color: colors.primary },
-    memberName: { fontSize: 13, fontFamily: fonts.body.bold, color: colors.foreground },
-    memberMeta: { fontSize: 11, color: colors.mutedForeground, marginTop: 2 },
-    memberDate: { fontSize: 10, color: colors.mutedForeground },
     scrollTopBtn: {
       position: 'absolute',
       bottom: 24,

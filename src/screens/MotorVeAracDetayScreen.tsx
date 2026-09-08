@@ -1,15 +1,14 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, NativeSyntheticEvent, NativeScrollEvent, Share, TextInput, Linking, Image,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, NativeSyntheticEvent, NativeScrollEvent, Share, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
 import { confirmAction } from '../utils/confirm';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  ArrowLeft, Share2, Bookmark, ShieldCheck, Plus, Minus, Check, X, Image as ImageIcon,
-  AlertTriangle, Info, ArrowUp, Star, Tag, ExternalLink, MapPin,
+  ArrowLeft, Share2, Bookmark, ShieldCheck, Plus, Minus, Check, X,
+  AlertTriangle, ArrowUp, Tag, ExternalLink, MapPin,
 } from 'lucide-react-native';
 import { fonts, radius, rgba } from '../theme/theme';
 import { useTheme } from '../theme/ThemeContext';
@@ -23,8 +22,6 @@ import { buildListingSearchUrls } from '../utils/listings';
 import { buildNearbyServiceUrl, buildIssueServiceUrl } from '../utils/nearby';
 import { ENGINE_BAY_IMAGE as ENGINE_BAY, TRANSMISSION_IMAGE, getVehicleImage } from '../data/images';
 import { useFavorites } from '../state/FavoritesContext';
-import { useReviews } from '../state/ReviewsContext';
-import { useNotifications } from '../state/NotificationsContext';
 import { useUsageStats } from '../state/UsageStatsContext';
 import { useMembers } from '../state/MembersContext';
 
@@ -39,7 +36,7 @@ export default function MotorVeAracDetayScreen() {
   const { themeColors: colors } = useTheme();
   const { t } = useLanguage();
   const s = useMemo(() => getStyles(colors), [colors]);
-  const tabs = [t.tabProsCons, t.chronicIssues, t.tabTransmission, t.tabReviews];
+  const tabs = [t.tabProsCons, t.chronicIssues, t.tabTransmission];
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -70,66 +67,7 @@ export default function MotorVeAracDetayScreen() {
   const compatibleVehicles = getVehiclesByMotor(motorId);
   const compatibleVehicle = compatibleVehicles[0];
 
-  const { getReviewsForMotor, getAverageRating, addReview } = useReviews();
-  const { addNotification } = useNotifications();
   const { currentUser } = useMembers();
-  const motorReviews = getReviewsForMotor(motorId);
-  const averageRating = getAverageRating(motorId);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewPhotoUri, setReviewPhotoUri] = useState<string | null>(null);
-
-  const handlePickReviewPhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('MotorKarne', 'Fotoğraf ekleyebilmek için galeri izni gerekiyor.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.6,
-    });
-    if (!result.canceled && result.assets?.[0]) {
-      setReviewPhotoUri(result.assets[0].uri);
-    }
-  };
-
-  const handleSubmitReview = () => {
-    if (!currentUser) {
-      confirmAction(
-        'MotorKarne',
-        'Yorum yapabilmek için giriş yapmanız gerekir.',
-        () => nav.navigate('GirisYap'),
-        { confirmText: 'Giriş Yap', cancelText: 'Vazgeç' }
-      );
-      return;
-    }
-    const result = addReview({
-      motorId,
-      userId: currentUser.id,
-      userName: currentUser.fullName,
-      rating: reviewRating,
-      comment: reviewComment,
-      photoUri: reviewPhotoUri ?? undefined,
-    });
-    if (!result.success) {
-      Alert.alert('MotorKarne', result.error ?? 'Yorum eklenemedi.');
-      return;
-    }
-
-    const isFollowed = compatibleVehicles.some((v) => isVehicleSaved(v.id));
-    const reviewBelongsToSomeoneElse = result.review?.userId !== currentUser.id;
-    if (isFollowed && motor && reviewBelongsToSomeoneElse) {
-      addNotification(
-        `${motor.name} için yeni bir yorum eklendi`,
-        `${currentUser.fullName}: "${reviewComment.length > 80 ? reviewComment.slice(0, 80) + '…' : reviewComment}"`
-      );
-    }
-
-    setReviewComment('');
-    setReviewRating(5);
-    setReviewPhotoUri(null);
-  };
 
   const handleShare = async () => {
     if (!motor) return;
@@ -384,91 +322,6 @@ export default function MotorVeAracDetayScreen() {
             </View>
           )}
 
-          {/* Reviews */}
-          {tab === 3 && (
-            <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
-              {averageRating !== null && (
-                <View style={s.avgRatingRow}>
-                  <Star size={18} color={colors.chart3} fill={colors.chart3} />
-                  <Text style={s.avgRatingText}>
-                    {averageRating.toFixed(1)} / 5 · {motorReviews.length} yorum
-                  </Text>
-                </View>
-              )}
-
-              <View style={s.reviewFormBox}>
-                <Text style={s.reviewFormLabel}>{t.motDetayPuaniniz}</Text>
-                <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <TouchableOpacity key={n} onPress={() => setReviewRating(n)}>
-                      <Star
-                        size={24}
-                        color={colors.chart3}
-                        fill={n <= reviewRating ? colors.chart3 : 'transparent'}
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <TextInput
-                  style={s.reviewInput}
-                  placeholder={t.motDetayYorumPlaceholder}
-                  placeholderTextColor={colors.mutedForeground}
-                  value={reviewComment}
-                  onChangeText={setReviewComment}
-                  multiline
-                />
-                {reviewPhotoUri ? (
-                  <View style={s.reviewPhotoPreviewBox}>
-                    <Image source={{ uri: reviewPhotoUri }} style={s.reviewPhotoPreview} />
-                    <TouchableOpacity style={s.reviewPhotoRemoveBtn} onPress={() => setReviewPhotoUri(null)}>
-                      <X size={14} color={colors.primaryForeground} />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity style={s.reviewAddPhotoBtn} onPress={handlePickReviewPhoto}>
-                    <ImageIcon size={15} color={colors.primary} />
-                    <Text style={s.reviewAddPhotoBtnText}>Fotoğraf Ekle</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={s.reviewSubmitBtn} onPress={handleSubmitReview}>
-                  <Text style={s.reviewSubmitBtnText}>{t.motDetayYorumuGonder}</Text>
-                </TouchableOpacity>
-              </View>
-
-              {motorReviews.length === 0 ? (
-                <View style={{ alignItems: 'center', marginTop: 24 }}>
-                  <Info size={28} color={colors.mutedForeground} style={{ marginBottom: 8 }} />
-                  <Text style={s.emptyTabText}>{t.motDetayYorumYok}</Text>
-                </View>
-              ) : (
-                <View style={{ gap: 10, marginTop: 20 }}>
-                  {motorReviews.map((r) => (
-                    <View key={r.id} style={s.reviewCard}>
-                      <View style={s.rowBetween}>
-                        <Text style={s.reviewUserName}>{r.userName}</Text>
-                        <View style={{ flexDirection: 'row' }}>
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <Star
-                              key={n}
-                              size={12}
-                              color={colors.chart3}
-                              fill={n <= r.rating ? colors.chart3 : 'transparent'}
-                            />
-                          ))}
-                        </View>
-                      </View>
-                      <Text style={s.reviewComment}>{r.comment}</Text>
-                      {r.photoUri && (
-                        <Image source={{ uri: r.photoUri }} style={s.reviewCardPhoto} resizeMode="cover" />
-                      )}
-                      <Text style={s.reviewDate}>{r.createdAt}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
-
           {/* Compatible Vehicles */}
           {compatibleVehicles.length > 0 && (
             <View style={{ paddingHorizontal: 20, marginTop: 28 }}>
@@ -648,33 +501,6 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   listingBtnText: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.primary },
   emptyTabText: { fontSize: 13, color: colors.mutedForeground, textAlign: 'center', lineHeight: 19 },
-  avgRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  avgRatingText: { fontSize: 13, fontFamily: fonts.body.bold, color: colors.foreground },
-  reviewFormBox: { borderRadius: radius, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 16 },
-  reviewFormLabel: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.mutedForeground },
-  reviewInput: {
-    marginTop: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.input,
-    padding: 12, fontSize: 13, color: colors.foreground, minHeight: 72, textAlignVertical: 'top',
-  },
-  reviewSubmitBtn: { marginTop: 12, borderRadius: radius, backgroundColor: colors.primary, paddingVertical: 12, alignItems: 'center' },
-  reviewSubmitBtnText: { fontSize: 13, fontFamily: fonts.body.bold, color: colors.primaryForeground },
-  reviewAddPhotoBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border,
-    borderStyle: 'dashed', paddingVertical: 10,
-  },
-  reviewAddPhotoBtnText: { fontSize: 12, fontFamily: fonts.body.semibold, color: colors.primary },
-  reviewPhotoPreviewBox: { marginTop: 10, position: 'relative', alignSelf: 'flex-start' },
-  reviewPhotoPreview: { width: 80, height: 80, borderRadius: 8 },
-  reviewPhotoRemoveBtn: {
-    position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11,
-    backgroundColor: colors.destructive, alignItems: 'center', justifyContent: 'center',
-  },
-  reviewCardPhoto: { width: '100%', height: 160, borderRadius: 8, marginTop: 8 },
-  reviewCard: { borderRadius: radius, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 14 },
-  reviewUserName: { fontSize: 13, fontFamily: fonts.body.bold, color: colors.foreground },
-  reviewComment: { fontSize: 12, color: colors.foreground, marginTop: 6, lineHeight: 18 },
-  reviewDate: { fontSize: 10, color: colors.mutedForeground, marginTop: 8 },
   scrollTopBtn: {
     position: 'absolute',
     bottom: 24,

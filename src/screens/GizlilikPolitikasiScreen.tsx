@@ -13,17 +13,19 @@ const SECTIONS: { title: string; body: string }[] = [
   {
     title: '1. Toplanan Bilgiler',
     body:
-      'Üye olurken ad-soyad, e-posta adresi, isteğe bağlı telefon numaranız ve şifreniz cihazınızda saklanır. ' +
-      'MotorKarne bu bilgileri yalnızca hesabınızı oluşturmak, giriş yapmanızı sağlamak ve favori/karşılaştırma ' +
-      'listelerinizi sizinle ilişkilendirmek için kullanır.',
+      'Üye olurken ad-soyad, e-posta adresi ve isteğe bağlı telefon numaranız MotorKarne\'nın sunucusunda ' +
+      'güvenli şekilde saklanır; şifreniz asla düz metin olarak tutulmaz, geri döndürülemeyecek şekilde ' +
+      '(hash\'lenerek) saklanır. MotorKarne bu bilgileri yalnızca hesabınızı oluşturmak, giriş yapmanızı ' +
+      'sağlamak ve favori/karşılaştırma listelerinizi sizinle ilişkilendirmek için kullanır.',
   },
   {
     title: '2. Verilerin Saklanması',
     body:
-      'Kişisel verileriniz (ad, e-posta, telefon, favoriler, yorumlar) yalnızca kullandığınız cihazda tutulur, ' +
-      'MotorKarne\'nın sunucularına gönderilmez. Motor/araç katalog bilgilerini (kişisel veri değildir) size ' +
-      'sunabilmek için uygulama, MotorKarne\'nın kendi sunucusuna bağlanır; bu sırada hiçbir kişisel veriniz ' +
-      'sunucuya iletilmez.',
+      'Hesap bilgileriniz (ad, e-posta, telefon, şifre) MotorKarne\'nın kendi sunucusunda, şifrelenmiş bir ' +
+      'bağlantı üzerinden saklanır; bu sayede farklı cihazlardan aynı hesapla giriş yapabilirsiniz. Profil ' +
+      'fotoğrafınız ve reklamsız deneyim aboneliğinize dair yerel önbellek gibi bazı bilgiler ise yalnızca ' +
+      'kullandığınız cihazda tutulur. Favoriler ve karşılaştırmalar cihazınızda saklanır. Verileriniz, ' +
+      'yasal zorunluluklar dışında üçüncü taraflarla paylaşılmaz.',
   },
   {
     title: '3. KVKK Kapsamında Haklarınız',
@@ -67,8 +69,8 @@ export default function GizlilikPolitikasiScreen() {
             <ShieldCheck size={24} color={colors.primary} />
           </View>
           <Text style={s.introText}>
-            Bu metin, MotorKarne'nın bir demo/örnek uygulama olduğu göz önünde bulundurularak hazırlanmış bir
-            şablondur. Gerçek bir yayın öncesinde bir hukuk danışmanı tarafından gözden geçirilmelidir.
+            Bu sayfa, MotorKarne'nin kişisel verilerinizi nasıl topladığını, sakladığını ve kullandığını
+            özetler. Hukuki olarak eksiksiz metinlere aşağıdaki "Tam Metinler" bölümünden ulaşabilirsiniz.
           </Text>
         </View>
 

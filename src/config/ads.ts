@@ -33,11 +33,6 @@ const TEST_IDS = {
     ios: 'ca-app-pub-3940256099942544/4411468910',
     default: '',
   })!,
-  rewarded: Platform.select({
-    android: 'ca-app-pub-3940256099942544/5224354917',
-    ios: 'ca-app-pub-3940256099942544/1712485313',
-    default: '',
-  })!,
 };
 
 // Gerçek AdMob hesabından alınan reklam birimi kimliklerini buraya yapıştır.
@@ -45,7 +40,6 @@ const TEST_IDS = {
 const REAL_IDS = {
   banner: Platform.select({ android: 'ca-app-pub-9017194698663463/7738120259', ios: 'REPLACE_ME_IOS_BANNER', default: '' })!,
   interstitial: Platform.select({ android: 'ca-app-pub-9017194698663463/9496507173', ios: 'REPLACE_ME_IOS_INTERSTITIAL', default: '' })!,
-  rewarded: Platform.select({ android: 'ca-app-pub-9017194698663463/3991426879', ios: 'REPLACE_ME_IOS_REWARDED', default: '' })!,
 };
 
 function resolve(key: keyof typeof TEST_IDS): string {
@@ -57,7 +51,6 @@ function resolve(key: keyof typeof TEST_IDS): string {
 export const AD_UNIT_IDS = {
   banner: resolve('banner'),
   interstitial: resolve('interstitial'),
-  rewarded: resolve('rewarded'),
 };
 
 // Ayarlar
@@ -65,6 +58,4 @@ export const AD_CONFIG = {
   // Geçiş reklamının kaç ekran değişiminde bir gösterileceği (her seferinde göstermek
   // çok rahatsız edici olur — bu sayı, kullanıcı deneyimini dengelemek için var).
   interstitialFrequency: 4,
-  // Ödüllü reklam izlendiğinde kaç gün reklamsız kullanım verileceği (aylık).
-  rewardedAdFreeDurationDays: 30,
 };

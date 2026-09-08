@@ -40,7 +40,7 @@ import RemoteImage from '../components/RemoteImage';
 import { useNotifications } from '../state/NotificationsContext';
 import { useAds } from '../state/AdsContext';
 import BannerAdSlot from '../components/BannerAdSlot';
-import RewardedAdPrompt from '../components/RewardedAdPrompt';
+import AdFreeCard from '../components/AdFreeCard';
 
 type Nav = NativeStackNavigationProp<any>;
 
@@ -178,7 +178,7 @@ export default function KesfetScreen() {
             </ScrollView>
           </View>
 
-          <RewardedAdPrompt />
+          <AdFreeCard />
 
           {/* Popular brands */}
           <View style={{ marginTop: 28 }}>
