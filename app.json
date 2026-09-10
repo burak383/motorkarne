@@ -54,7 +54,8 @@
           "delayAppMeasurementInit": true
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "expo-tracking-transparency"
     ],
     "extra": {
       "eas": {
