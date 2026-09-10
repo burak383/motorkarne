@@ -16,7 +16,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.buraktufekci.motorkarne"
+      "bundleIdentifier": "com.buraktufekci.motorkarne",
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.buraktufekci.motorkarne",
