@@ -1,0 +1,58 @@
+name: EAS Local Android Build
+
+# Bu iş akışı, EAS build kotanızı HİÇ kullanmadan GitHub'ın ücretsiz Linux
+# sunucusunda "eas build --local" komutunu çalıştırır ve üretilen APK'yı
+# indirilebilir bir "artifact" olarak sunar. Elle tetiklemek için:
+# GitHub reposu -> Actions sekmesi -> "EAS Local Android Build" -> "Run workflow".
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "eas.json içindeki build profili (development / preview / production)"
+        required: false
+        default: "preview"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repoyu indir
+        uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Java (JDK 17) kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK kur
+        uses: android-actions/setup-android@v3
+
+      - name: Bağımlılıkları yükle
+        run: npm install
+
+      - name: EAS CLI yükle
+        run: npm install -g eas-cli
+
+      - name: Yerel Android build al
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --local \
+            --platform android \
+            --profile "${{ github.event.inputs.profile }}" \
+            --non-interactive \
+            --output ./motorkarne-build.apk
+
+      - name: APK'yı artifact olarak yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: motorkarne-apk
+          path: motorkarne-build.apk
+          retention-days: 14

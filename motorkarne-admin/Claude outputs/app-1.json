@@ -17,11 +17,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.buraktufekci.motorkarne",
-      "buildNumber": "5",
-      "usesAppleSignIn": true,
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "buildNumber": "2",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.buraktufekci.motorkarne",
@@ -29,10 +26,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#11161C"
-      },
-      "permissions": [
-        "com.google.android.gms.permission.AD_ID"
-      ]
+      }
     },
     "web": {
       "bundler": "metro",
@@ -64,13 +58,7 @@
           "userTrackingPermission": "Bu tanımlayıcı size daha ilgili reklamlar göstermek için kullanılacaktır."
         }
       ],
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.842233451260-do785s23pk79h67ev7d3r2o704oopt25"
-        }
-      ],
-      "expo-secure-store"
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "eas": {

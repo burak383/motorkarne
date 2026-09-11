@@ -1,0 +1,20 @@
+{
+  "name": "motorkarne-api",
+  "version": "1.0.0",
+  "description": "MotorKarne katalog verisi ve üyelik/kimlik doğrulama için REST API (TiDB destekli)",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.11.0",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^7.4.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

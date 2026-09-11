@@ -57,6 +57,12 @@ export default function AdFreeCard() {
   const priceLabel =
     monthlyOffering?.availablePackages?.[0]?.product?.priceString ?? '69,90 TL / ay';
 
+  // Apple App Store İnceleme Kuralı 3.1.2 (otomatik yenilenen abonelikler),
+  // satın alma noktasında en az şunların açıkça gösterilmesini zorunlu kılıyor:
+  // abonelik başlığı, süresi, fiyatı ve Kullanım Şartları/Gizlilik Politikası'na
+  // işlevsel bağlantılar. Önceden burada sadece fiyat gösteriliyordu — bu,
+  // incelemede "Guideline 3.1.2 - Business - Subscription information not
+  // provided" gerekçesiyle reddedilme riski taşıyordu.
   return (
     <View style={{ gap: 8 }}>
       <TouchableOpacity style={[s.card, s.premiumCard]} onPress={handleSubscribe} activeOpacity={0.8} disabled={isLoading}>
@@ -64,9 +70,17 @@ export default function AdFreeCard() {
         {isLoading ? (
           <ActivityIndicator size="small" color={colors.mutedForeground} />
         ) : (
-          <Text style={s.text}>Sürekli reklamsız ol — {priceLabel}</Text>
+          <Text style={s.text}>MotorKarne Pro (Aylık) — {priceLabel}</Text>
         )}
       </TouchableOpacity>
+      <Text style={s.disclosureText}>
+        Aylık, otomatik yenilenen abonelik. Mevcut dönem bitmeden en az 24 saat önce iptal
+        etmediğiniz sürece aynı süre için otomatik olarak yenilenir ve hesabınızdan tahsilat
+        yapılır. {' '}
+        <Text style={s.disclosureLink} onPress={() => nav.navigate('GizlilikPolitikasi')}>
+          Kullanım Şartları ve Gizlilik Politikası
+        </Text>
+      </Text>
     </View>
   );
 }
@@ -91,4 +105,15 @@ const getStyles = (colors: any) =>
     },
     text: { flex: 1, fontSize: 12, fontFamily: fonts.body.semibold, color: colors.foreground },
     adFreeText: { flex: 1, fontSize: 12, fontFamily: fonts.body.semibold, color: colors.foreground },
+    disclosureText: {
+      marginHorizontal: 20,
+      fontSize: 10.5,
+      lineHeight: 15,
+      color: colors.mutedForeground,
+    },
+    disclosureLink: {
+      color: colors.primary,
+      fontFamily: fonts.body.semibold,
+      textDecorationLine: 'underline',
+    },
   });

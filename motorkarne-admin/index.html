@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MotorKarne — Kontrol Paneli</title>
+<style>
+  :root {
+    --bg: #0e1013;
+    --panel: #16191d;
+    --panel-2: #1c1f24;
+    --border: #2a2e35;
+    --text: #e8e6e1;
+    --text-dim: #8b9099;
+    --accent: #ff8a3d;
+    --accent-dim: #7a4a26;
+    --risk-low: #4ade80;
+    --risk-medium: #60a5fa;
+    --risk-high: #f97316;
+    --risk-danger: #ef4444;
+    --mono: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    --sans: -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .brand h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: 0.02em; }
+  .brand .sub { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .conn-status { display: flex; align-items: center; gap: 16px; font-family: var(--mono); font-size: 12px; }
+  .conn-status .pill {
+    padding: 4px 10px; border-radius: 100px; border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .conn-status .pill.ok { color: var(--risk-low); border-color: var(--risk-low); }
+  .conn-status .pill.err { color: var(--risk-danger); border-color: var(--risk-danger); }
+
+  .config-bar {
+    display: flex; gap: 10px; padding: 12px 24px; background: var(--panel-2);
+    border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center;
+  }
+  .config-bar label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
+  .config-bar input {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 7px 10px; border-radius: 6px; font-family: var(--mono); font-size: 12px; min-width: 220px;
+  }
+  .config-bar input:focus { outline: none; border-color: var(--accent); }
+  .config-bar button {
+    background: var(--accent); color: #1a0e05; border: none; padding: 8px 16px;
+    border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px;
+  }
+  .config-bar button:hover { filter: brightness(1.1); }
+
+  .tabs { display: flex; gap: 4px; padding: 16px 24px 0; }
+  .tab {
+    padding: 10px 20px; background: transparent; border: none; color: var(--text-dim);
+    font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; font-size: 13px;
+  }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  .main { padding: 20px 24px 60px; max-width: 1200px; margin: 0 auto; }
+
+  .toolbar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
+  .toolbar input[type="text"] {
+    flex: 1; background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 14px; border-radius: 8px; font-size: 13px;
+  }
+  .toolbar input[type="text"]:focus { outline: none; border-color: var(--accent); }
+  .btn-primary {
+    background: var(--accent); color: #1a0e05; border: none; padding: 10px 18px;
+    border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; white-space: nowrap;
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-ghost {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+    padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  }
+  .btn-ghost:hover { border-color: var(--accent); }
+  .btn-danger { color: var(--risk-danger); border-color: var(--risk-danger); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 10px; overflow: hidden; }
+  thead th {
+    text-align: left; padding: 12px 14px; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 600;
+  }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--panel-2); }
+  .risk-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px;
+    font-family: var(--mono); font-weight: 700;
+  }
+  .risk-low { background: rgba(74,222,128,0.15); color: var(--risk-low); }
+  .risk-medium { background: rgba(96,165,250,0.15); color: var(--risk-medium); }
+  .risk-high { background: rgba(249,115,22,0.15); color: var(--risk-high); }
+  .row-actions { display: flex; gap: 6px; }
+  .row-actions button {
+    background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+    padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px;
+  }
+  .row-actions button:hover { color: var(--text); border-color: var(--accent); }
+  .row-actions button.del:hover { color: var(--risk-danger); border-color: var(--risk-danger); }
+
+  .empty { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+  .empty .big { font-size: 32px; margin-bottom: 8px; }
+
+  /* Modal */
+  .overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    align-items: flex-start; justify-content: center; z-index: 100; overflow-y: auto; padding: 40px 20px;
+  }
+  .overlay.show { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    width: 100%; max-width: 640px; padding: 24px;
+  }
+  .modal h2 { margin: 0 0 20px; font-size: 18px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 5px; font-family: var(--mono); }
+  .field input, .field select, .field textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 12px; border-radius: 7px; font-size: 13px; font-family: var(--sans);
+  }
+  .field textarea { min-height: 70px; resize: vertical; font-family: var(--sans); }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .list-editor { border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  .list-editor .item { display: flex; gap: 6px; margin-bottom: 6px; }
+  .list-editor .item input { flex: 1; }
+  .list-editor .item button { background: transparent; border: 1px solid var(--border); color: var(--risk-danger); border-radius: 6px; padding: 0 10px; cursor: pointer; }
+  .list-editor .add-btn { background: transparent; border: 1px dashed var(--border); color: var(--text-dim); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: 100%; }
+  .chronic-block { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; background: var(--panel-2); }
+  .chronic-block .field { margin-bottom: 8px; }
+  .chronic-block .remove-chronic { background: transparent; border: none; color: var(--risk-danger); cursor: pointer; font-size: 11px; float: right; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .section-label { font-size: 12px; font-weight: 700; color: var(--accent); margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--panel); border: 1px solid var(--border);
+    padding: 14px 18px; border-radius: 8px; font-size: 13px; z-index: 200; display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .toast.show { display: block; }
+  .toast.success { border-color: var(--risk-low); color: var(--risk-low); }
+  .toast.error { border-color: var(--risk-danger); color: var(--risk-danger); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="dot"></div>
+    <div>
+      <h1>MotorKarne Kontrol Paneli</h1>
+      <div class="sub">katalog yönetimi</div>
+    </div>
+  </div>
+  <div class="conn-status">
+    <span id="connPill" class="pill">bağlanılmadı</span>
+  </div>
+</div>
+
+<div class="config-bar">
+  <label>API Adresi</label>
+  <input type="text" id="apiUrl" placeholder="http://localhost:3000" value="http://localhost:3000">
+  <label>API Anahtarı</label>
+  <input type="password" id="apiKey" placeholder="ADMIN_API_KEY">
+  <button onclick="saveConfigAndConnect()">Bağlan &amp; Kaydet</button>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="motors" onclick="switchTab('motors')">Motorlar</button>
+  <button class="tab" data-tab="vehicles" onclick="switchTab('vehicles')">Araçlar</button>
+</div>
+
+<div class="main">
+
+  <!-- MOTORS TAB -->
+  <div id="tab-motors">
+    <div class="toolbar">
+      <input type="text" id="motorSearch" placeholder="Motor ara (isim, marka, kod)..." oninput="renderMotors()">
+      <button class="btn-primary" onclick="openMotorModal()">+ Yeni Motor</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>İsim</th><th>Markalar</th><th>Güç</th><th>Skor</th><th>Risk</th><th></th></tr>
+      </thead>
+      <tbody id="motorsTableBody"></tbody>
+    </table>
+    <div id="motorsEmpty" class="empty" style="display:none;">
+      <div class="big">⛽</div>
+      Henüz motor yok. Bağlan &amp; Kaydet'e bas ya da yeni motor ekle.
+    </div>
+  </div>
+
+  <!-- VEHICLES TAB -->
+  <div id="tab-vehicles" style="display:none;">
+    <div class="toolbar">
+      <input type="text" id="vehicleSearch" placeholder="Araç ara (isim, marka)..." oninput="renderVehicles()">
+      <button class="btn-primary" onclick="openVehicleModal()">+ Yeni Araç</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>İsim</th><th>Marka</th><th>Motor</th><th>Skor</th><th></th></tr>
+      </thead>
+      <tbody id="vehiclesTableBody"></tbody>
+    </table>
+    <div id="vehiclesEmpty" class="empty" style="display:none;">
+      <div class="big">🚗</div>
+      Henüz araç yok.
+    </div>
+  </div>
+
+</div>
+
+<!-- MOTOR MODAL -->
+<div class="overlay" id="motorOverlay">
+  <div class="modal">
+    <h2 id="motorModalTitle">Yeni Motor</h2>
+    <input type="hidden" id="motorEditingId">
+    <div class="field-row">
+      <div class="field"><label>ID (benzersiz, örn. bmw-b47-20d)</label><input type="text" id="m_id"></div>
+      <div class="field"><label>İsim</label><input type="text" id="m_name"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Kod</label><input type="text" id="m_code"></div>
+      <div class="field"><label>Yakıt</label><input type="text" id="m_fuel"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Güç</label><input type="text" id="m_power" placeholder="190 hp"></div>
+      <div class="field"><label>Tork</label><input type="text" id="m_torque" placeholder="400 Nm"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Şanzıman</label><input type="text" id="m_transmission"></div>
+      <div class="field"><label>Tüketim</label><input type="text" id="m_consumption" placeholder="5.5 L/100km"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Skor (0-10)</label><input type="number" step="0.1" id="m_score"></div>
+      <div class="field"><label>Risk Seviyesi</label>
+        <select id="m_riskLevel">
+          <option value="low">Düşük risk</option>
+          <option value="medium">Kontrollü</option>
+          <option value="high">Yüksek risk</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Risk Etiketi (görünen metin)</label><input type="text" id="m_risk" placeholder="Kontrollü"></div>
+    <div class="field"><label>Not</label><textarea id="m_note"></textarea></div>
+    <div class="field"><label>Görsel URL</label><input type="text" id="m_imageUrl"></div>
+
+    <div class="section-label">Markalar</div>
+    <div class="list-editor" id="m_brands"></div>
+    <button class="add-btn" onclick="addListItem('m_brands')" style="margin-top:8px;">+ Marka Ekle</button>
+
+    <div class="section-label">Artılar</div>
+    <div class="list-editor" id="m_pros"></div>
+    <button class="add-btn" onclick="addListItem('m_pros')" style="margin-top:8px;">+ Artı Ekle</button>
+
+    <div class="section-label">Eksiler</div>
+    <div class="list-editor" id="m_cons"></div>
+    <button class="add-btn" onclick="addListItem('m_cons')" style="margin-top:8px;">+ Eksi Ekle</button>
+
+    <div class="section-label">Kronik Sorunlar</div>
+    <div id="m_chronic"></div>
+    <button class="add-btn" onclick="addChronicItem()">+ Kronik Sorun Ekle</button>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeMotorModal()">Vazgeç</button>
+      <button class="btn-primary" onclick="saveMotor()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- VEHICLE MODAL -->
+<div class="overlay" id="vehicleOverlay">
+  <div class="modal">
+    <h2 id="vehicleModalTitle">Yeni Araç</h2>
+    <input type="hidden" id="v_editingId">
+    <div class="field-row">
+      <div class="field"><label>ID (benzersiz, örn. bmw-x3-20d)</label><input type="text" id="v_id"></div>
+      <div class="field"><label>İsim</label><input type="text" id="v_name"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Marka</label><input type="text" id="v_brand"></div>
+      <div class="field"><label>Motor ID (motors tablosundaki id)</label><input type="text" id="v_motorId"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Açıklama (örn. 2019–2026 • Sedan)</label><input type="text" id="v_desc"></div>
+      <div class="field"><label>Skor (0-10)</label><input type="number" step="0.1" id="v_score"></div>
+    </div>
+    <div class="field"><label>Motor metni (örn. 2.0d B47 190 hp ZF8)</label><input type="text" id="v_engine"></div>
+    <div class="field"><label>Görsel URL</label><input type="text" id="v_img"></div>
+    <div class="field"><label>Not</label><textarea id="v_note"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeVehicleModal()">Vazgeç</button>
+      <button class="btn-primary" onclick="saveVehicle()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let motors = [];
+let vehicles = [];
+
+function apiBase() { return document.getElementById('apiUrl').value.replace(/\/$/, ''); }
+function apiKey() { return document.getElementById('apiKey').value; }
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(() => { t.className = 'toast'; }, 3500);
+}
+
+function saveConfigAndConnect() {
+  localStorage.setItem('mk_api_url', apiBase());
+  localStorage.setItem('mk_api_key', apiKey());
+  connect();
+}
+
+async function connect() {
+  const pill = document.getElementById('connPill');
+  try {
+    const res = await fetch(apiBase() + '/health');
+    const data = await res.json();
+    if (data.status === 'ok') {
+      pill.textContent = `bağlı · ${data.motor_count} motor · ${data.vehicle_count} araç`;
+      pill.className = 'pill ok';
+      await loadMotors();
+      await loadVehicles();
+    } else {
+      throw new Error('sağlık kontrolü başarısız');
+    }
+  } catch (err) {
+    pill.textContent = 'bağlantı hatası';
+    pill.className = 'pill err';
+    showToast('API\'ye bağlanılamadı: ' + err.message, 'error');
+  }
+}
+
+async function loadMotors() {
+  const res = await fetch(apiBase() + '/api/motors');
+  motors = await res.json();
+  renderMotors();
+}
+
+async function loadVehicles() {
+  const res = await fetch(apiBase() + '/api/vehicles');
+  vehicles = await res.json();
+  renderVehicles();
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.getElementById('tab-motors').style.display = name === 'motors' ? 'block' : 'none';
+  document.getElementById('tab-vehicles').style.display = name === 'vehicles' ? 'block' : 'none';
+}
+
+const riskLabel = { low: 'Düşük', medium: 'Kontrollü', high: 'Yüksek' };
+
+function renderMotors() {
+  const q = document.getElementById('motorSearch').value.toLowerCase();
+  const filtered = motors.filter(m =>
+    m.name.toLowerCase().includes(q) ||
+    (m.brands || []).some(b => b.toLowerCase().includes(q)) ||
+    (m.code || '').toLowerCase().includes(q)
+  );
+  const body = document.getElementById('motorsTableBody');
+  document.getElementById('motorsEmpty').style.display = filtered.length ? 'none' : 'block';
+  body.innerHTML = filtered.map(m => `
+    <tr>
+      <td><strong>${escapeHtml(m.name)}</strong><div style="color:var(--text-dim);font-size:11px;">${escapeHtml(m.id)}</div></td>
+      <td>${(m.brands || []).map(b => escapeHtml(b)).join(', ')}</td>
+      <td>${escapeHtml(m.power || '-')}</td>
+      <td>${m.score ?? '-'}</td>
+      <td><span class="risk-badge risk-${m.risk_level}">${riskLabel[m.risk_level] || m.risk_level}</span></td>
+      <td class="row-actions">
+        <button onclick="editMotor('${m.id}')">Düzenle</button>
+        <button class="del" onclick="deleteMotor('${m.id}')">Sil</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderVehicles() {
+  const q = document.getElementById('vehicleSearch').value.toLowerCase();
+  const filtered = vehicles.filter(v =>
+    v.name.toLowerCase().includes(q) || v.brand.toLowerCase().includes(q)
+  );
+  const body = document.getElementById('vehiclesTableBody');
+  document.getElementById('vehiclesEmpty').style.display = filtered.length ? 'none' : 'block';
+  body.innerHTML = filtered.map(v => `
+    <tr>
+      <td><strong>${escapeHtml(v.name)}</strong><div style="color:var(--text-dim);font-size:11px;">${escapeHtml(v.id)}</div></td>
+      <td>${escapeHtml(v.brand)}</td>
+      <td>${escapeHtml(v.engine || '-')}</td>
+      <td>${v.score ?? '-'}</td>
+      <td class="row-actions">
+        <button onclick="editVehicle('${v.id}')">Düzenle</button>
+        <button class="del" onclick="deleteVehicle('${v.id}')">Sil</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---------- Motor modal ----------
+function addListItem(containerId, value) {
+  const container = document.getElementById(containerId);
+  const row = document.createElement('div');
+  row.className = 'item';
+  row.innerHTML = `<input type="text" value="${escapeHtml(value || '')}"><button onclick="this.parentElement.remove()">✕</button>`;
+  container.appendChild(row);
+}
+
+function addChronicItem(data) {
+  const container = document.getElementById('m_chronic');
+  const block = document.createElement('div');
+  block.className = 'chronic-block';
+  block.innerHTML = `
+    <button class="remove-chronic" onclick="this.parentElement.remove()">Kaldır ✕</button>
+    <div class="field"><label>Başlık</label><input type="text" class="c_title" value="${escapeHtml(data?.title || '')}"></div>
+    <div class="field"><label>Risk</label><input type="text" class="c_risk" value="${escapeHtml(data?.risk || '')}" placeholder="Orta"></div>
+    <div class="field"><label>Açıklama</label><textarea class="c_desc">${escapeHtml(data?.desc || '')}</textarea></div>
+    <div class="field"><label>Çözüm</label><textarea class="c_solution">${escapeHtml(data?.solution || '')}</textarea></div>
+  `;
+  container.appendChild(block);
+}
+
+function openMotorModal(motor) {
+  document.getElementById('motorModalTitle').textContent = motor ? 'Motoru Düzenle' : 'Yeni Motor';
+  document.getElementById('motorEditingId').value = motor ? motor.id : '';
+  document.getElementById('m_id').value = motor?.id || '';
+  document.getElementById('m_id').disabled = !!motor;
+  document.getElementById('m_name').value = motor?.name || '';
+  document.getElementById('m_code').value = motor?.code || '';
+  document.getElementById('m_fuel').value = motor?.fuel || '';
+  document.getElementById('m_power').value = motor?.power || '';
+  document.getElementById('m_torque').value = motor?.torque || '';
+  document.getElementById('m_transmission').value = motor?.transmission || '';
+  document.getElementById('m_consumption').value = motor?.consumption || '';
+  document.getElementById('m_score').value = motor?.score ?? '';
+  document.getElementById('m_riskLevel').value = motor?.risk_level || 'medium';
+  document.getElementById('m_risk').value = motor?.risk || '';
+  document.getElementById('m_note').value = motor?.note || '';
+  document.getElementById('m_imageUrl').value = motor?.image_url || '';
+
+  document.getElementById('m_brands').innerHTML = '';
+  (motor?.brands || []).forEach(b => addListItem('m_brands', b));
+  document.getElementById('m_pros').innerHTML = '';
+  (motor?.pros || []).forEach(p => addListItem('m_pros', p));
+  document.getElementById('m_cons').innerHTML = '';
+  (motor?.cons || []).forEach(c => addListItem('m_cons', c));
+  document.getElementById('m_chronic').innerHTML = '';
+  (motor?.chronic || []).forEach(c => addChronicItem(c));
+
+  document.getElementById('motorOverlay').classList.add('show');
+}
+function closeMotorModal() { document.getElementById('motorOverlay').classList.remove('show'); }
+
+function editMotor(id) {
+  const motor = motors.find(m => m.id === id);
+  openMotorModal(motor);
+}
+
+function collectListValues(containerId) {
+  return Array.from(document.getElementById(containerId).querySelectorAll('.item input'))
+    .map(i => i.value.trim()).filter(Boolean);
+}
+
+async function saveMotor() {
+  const id = document.getElementById('m_id').value.trim();
+  const isEdit = !!document.getElementById('motorEditingId').value;
+  if (!id) return showToast('ID zorunludur.', 'error');
+
+  const chronic = Array.from(document.getElementById('m_chronic').children).map(block => ({
+    title: block.querySelector('.c_title').value.trim(),
+    risk: block.querySelector('.c_risk').value.trim(),
+    desc: block.querySelector('.c_desc').value.trim(),
+    solution: block.querySelector('.c_solution').value.trim(),
+  })).filter(c => c.title);
+
+  const payload = {
+    id,
+    name: document.getElementById('m_name').value.trim(),
+    code: document.getElementById('m_code').value.trim(),
+    fuel: document.getElementById('m_fuel').value.trim(),
+    power: document.getElementById('m_power').value.trim(),
+    torque: document.getElementById('m_torque').value.trim(),
+    transmission: document.getElementById('m_transmission').value.trim(),
+    consumption: document.getElementById('m_consumption').value.trim(),
+    score: parseFloat(document.getElementById('m_score').value) || null,
+    risk: document.getElementById('m_risk').value.trim(),
+    riskLevel: document.getElementById('m_riskLevel').value,
+    note: document.getElementById('m_note').value.trim(),
+    imageUrl: document.getElementById('m_imageUrl').value.trim(),
+    brands: collectListValues('m_brands'),
+    pros: collectListValues('m_pros'),
+    cons: collectListValues('m_cons'),
+    chronic,
+  };
+
+  try {
+    const res = await fetch(apiBase() + '/api/motors' + (isEdit ? '/' + id : ''), {
+      method: isEdit ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey() },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'bilinmeyen hata');
+    showToast(isEdit ? 'Motor güncellendi.' : 'Motor eklendi.', 'success');
+    closeMotorModal();
+    await loadMotors();
+  } catch (err) {
+    showToast('Kaydedilemedi: ' + err.message, 'error');
+  }
+}
+
+async function deleteMotor(id) {
+  if (!confirm(`"${id}" motorunu silmek istediğine emin misin? Bu motoru kullanan araçların motor bağlantısı da kalkar.`)) return;
+  try {
+    const res = await fetch(apiBase() + '/api/motors/' + id, {
+      method: 'DELETE', headers: { 'x-api-key': apiKey() },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'bilinmeyen hata');
+    showToast('Motor silindi.', 'success');
+    await loadMotors();
+  } catch (err) {
+    showToast('Silinemedi: ' + err.message, 'error');
+  }
+}
+
+// ---------- Vehicle modal ----------
+function openVehicleModal(vehicle) {
+  document.getElementById('vehicleModalTitle').textContent = vehicle ? 'Aracı Düzenle' : 'Yeni Araç';
+  document.getElementById('v_editingId').value = vehicle ? vehicle.id : '';
+  document.getElementById('v_id').value = vehicle?.id || '';
+  document.getElementById('v_id').disabled = !!vehicle;
+  document.getElementById('v_name').value = vehicle?.name || '';
+  document.getElementById('v_brand').value = vehicle?.brand || '';
+  document.getElementById('v_motorId').value = vehicle?.motor_id || '';
+  document.getElementById('v_desc').value = vehicle?.description || '';
+  document.getElementById('v_score').value = vehicle?.score ?? '';
+  document.getElementById('v_engine').value = vehicle?.engine || '';
+  document.getElementById('v_img').value = vehicle?.img || '';
+  document.getElementById('v_note').value = vehicle?.note || '';
+  document.getElementById('vehicleOverlay').classList.add('show');
+}
+function closeVehicleModal() { document.getElementById('vehicleOverlay').classList.remove('show'); }
+
+function editVehicle(id) {
+  const vehicle = vehicles.find(v => v.id === id);
+  openVehicleModal(vehicle);
+}
+
+async function saveVehicle() {
+  const id = document.getElementById('v_id').value.trim();
+  const isEdit = !!document.getElementById('v_editingId').value;
+  if (!id) return showToast('ID zorunludur.', 'error');
+
+  const payload = {
+    id,
+    name: document.getElementById('v_name').value.trim(),
+    brand: document.getElementById('v_brand').value.trim(),
+    motorId: document.getElementById('v_motorId').value.trim() || null,
+    desc: document.getElementById('v_desc').value.trim(),
+    score: parseFloat(document.getElementById('v_score').value) || null,
+    engine: document.getElementById('v_engine').value.trim(),
+    img: document.getElementById('v_img').value.trim(),
+    note: document.getElementById('v_note').value.trim(),
+  };
+
+  try {
+    const res = await fetch(apiBase() + '/api/vehicles' + (isEdit ? '/' + id : ''), {
+      method: isEdit ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey() },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'bilinmeyen hata');
+    showToast(isEdit ? 'Araç güncellendi.' : 'Araç eklendi.', 'success');
+    closeVehicleModal();
+    await loadVehicles();
+  } catch (err) {
+    showToast('Kaydedilemedi: ' + err.message, 'error');
+  }
+}
+
+async function deleteVehicle(id) {
+  if (!confirm(`"${id}" aracını silmek istediğine emin misin?`)) return;
+  try {
+    const res = await fetch(apiBase() + '/api/vehicles/' + id, {
+      method: 'DELETE', headers: { 'x-api-key': apiKey() },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'bilinmeyen hata');
+    showToast('Araç silindi.', 'success');
+    await loadVehicles();
+  } catch (err) {
+    showToast('Silinemedi: ' + err.message, 'error');
+  }
+}
+
+// ---------- Init ----------
+window.addEventListener('DOMContentLoaded', () => {
+  const savedUrl = localStorage.getItem('mk_api_url');
+  const savedKey = localStorage.getItem('mk_api_key');
+  if (savedUrl) document.getElementById('apiUrl').value = savedUrl;
+  if (savedKey) document.getElementById('apiKey').value = savedKey;
+  if (savedUrl) connect();
+});
+</script>
+
+</body>
+</html>

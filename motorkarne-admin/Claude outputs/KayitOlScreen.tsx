@@ -61,17 +61,7 @@ export default function KayitOlScreen() {
     handleSocialError
   );
 
-  // ÖNEMLİ DÜZELTME: Bu ekranda kayıt (e-posta/şifre) akışı, gönderilmeden önce
-  // `consentAccepted` (Gizlilik Politikası/KVKK/Kullanım Şartları onayı) kontrol
-  // ediyordu ama Google/Apple ile devam et düğmeleri bu kontrolden tamamen
-  // muaftı — kullanıcı kutucuğu hiç işaretlemeden sosyal girişle hesap
-  // oluşturabiliyordu. Aşağıdaki iki fonksiyon artık kayıt akışıyla aynı onay
-  // kontrolünü uyguluyor.
   const handleGooglePress = () => {
-    if (!consentAccepted) {
-      Alert.alert('MotorKarne', 'Devam etmek için Gizlilik Politikası, KVKK Aydınlatma Metni ve Kullanım Şartları\'nı onaylamanız gerekir.');
-      return;
-    }
     if (!isGoogleAuthConfigured()) {
       Alert.alert('MotorKarne', 'Google ile giriş henüz yapılandırılmadı.');
       return;
@@ -86,14 +76,6 @@ export default function KayitOlScreen() {
     (profile) => handleSocialSuccess(profile),
     handleSocialError
   );
-
-  const handleApplePress = () => {
-    if (!consentAccepted) {
-      Alert.alert('MotorKarne', 'Devam etmek için Gizlilik Politikası, KVKK Aydınlatma Metni ve Kullanım Şartları\'nı onaylamanız gerekir.');
-      return;
-    }
-    promptApple();
-  };
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -314,7 +296,7 @@ export default function KayitOlScreen() {
                 }
                 cornerRadius={radius}
                 style={s.appleBtn}
-                onPress={handleApplePress}
+                onPress={promptApple}
               />
             )}
 

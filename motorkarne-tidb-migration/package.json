@@ -1,0 +1,14 @@
+{
+  "name": "motorkarne-migration",
+  "version": "1.0.0",
+  "description": "MotorKarne catalog.ts verisini TiDB Serverless'e aktarma betiği",
+  "main": "migrate.js",
+  "type": "commonjs",
+  "scripts": {
+    "migrate": "node migrate.js"
+  },
+  "dependencies": {
+    "mysql2": "^3.11.0",
+    "dotenv": "^16.4.5"
+  }
+}
