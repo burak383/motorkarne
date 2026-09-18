@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.buraktufekci.motorkarne",
-      "buildNumber": "6",
+      "buildNumber": "7",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -68,6 +68,14 @@
         "@react-native-google-signin/google-signin",
         {
           "iosUrlScheme": "com.googleusercontent.apps.842233451260-do785s23pk79h67ev7d3r2o704oopt25"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MotorKarne, yönetim panelinde katalogdaki araç ve motor modellerine görsel ekleyebilmeniz için fotoğraf galerinize erişim ister.",
+          "cameraPermission": "MotorKarne, motor bloğu üzerindeki kod etiketini fotoğraflayıp otomatik olarak tanıyabilmek (OCR) için kamera erişimi ister.",
+          "microphonePermission": false
         }
       ],
       "expo-secure-store"
