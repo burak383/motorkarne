@@ -1,0 +1,43 @@
+name: EAS Build iOS
+
+# EAS'ın bulut sunucularında (Apple'ın kendi altyapısı) iOS build alır.
+# "--local" KULLANMAZ, bu yüzden ubuntu-latest runner'da çalışabilir —
+# bu iş sadece build isteğini EAS'a gönderip sonucu bekler, derleme
+# Apple donanımında EAS tarafında gerçekleşir.
+# Elle tetiklemek için: GitHub reposu -> Actions -> "EAS Build iOS" -> "Run workflow".
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "eas.json içindeki build profili (development / preview / production)"
+        required: false
+        default: "production"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repoyu indir
+        uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Bağımlılıkları yükle
+        run: npm install
+
+      - name: EAS CLI yükle
+        run: npm install -g eas-cli
+
+      - name: EAS iOS build (bulut, Apple altyapısı)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --platform ios \
+            --profile "${{ github.event.inputs.profile }}" \
+            --non-interactive \
+            --wait
