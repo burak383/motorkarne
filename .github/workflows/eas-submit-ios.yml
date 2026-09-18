@@ -1,5 +1,5 @@
 name: EAS Submit iOS
-
+ 
 # En son alınan iOS build'ini App Store Connect'e gönderir.
 # ÖN KOŞUL (bir kereye mahsus, elle yapılması gerekir):
 #   1) App Store Connect -> Users and Access -> Integrations -> Keys ("Team Keys")
@@ -14,7 +14,7 @@ name: EAS Submit iOS
 #      Key ID / Issuer ID'yi bana iletmeniz yeterli.
 #
 # Elle tetiklemek için: GitHub reposu -> Actions -> "EAS Submit iOS" -> "Run workflow".
-
+ 
 on:
   workflow_dispatch:
     inputs:
@@ -22,25 +22,28 @@ on:
         description: "eas.json içindeki submit profili (API Key ile CI'da submit için production-ci kullanın)"
         required: false
         default: "production-ci"
-
+ 
 jobs:
   submit:
     runs-on: ubuntu-latest
     steps:
       - name: Repoyu indir
         uses: actions/checkout@v4
-
+ 
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
+ 
+      - name: Bağımlılıkları yükle
+        run: npm install
+ 
       - name: EAS CLI yükle
         run: npm install -g eas-cli
-
+ 
       - name: App Store Connect API key dosyasını yaz
         run: echo "${{ secrets.ASC_API_KEY_P8 }}" > asc-api-key.p8
-
+ 
       - name: EAS iOS submit (en son build)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -50,7 +53,7 @@ jobs:
             --profile "${{ github.event.inputs.profile }}" \
             --non-interactive \
             --latest
-
+ 
       - name: API key dosyasını temizle
         if: always()
         run: rm -f asc-api-key.p8
