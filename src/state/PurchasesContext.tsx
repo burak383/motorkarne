@@ -5,14 +5,24 @@ import Purchases, { PurchasesOffering } from 'react-native-purchases';
 import { REVENUECAT_CONFIG, isRevenueCatConfigured } from '../config/purchases';
 import { useMembers } from './MembersContext';
 
-// NOT: Abonelik satın alma artık HER ZAMAN giriş yapılmış bir hesap gerektiriyor
-// (bkz. aşağıdaki purchaseMonthly — `requiresLogin`). Bu nedenle "reklamsız"
-// durumunun cihazdaki hızlı-açılış önbelleği (RevenueCat'in ağ isteği sonuçlanana
-// kadar gösterilecek geçici değer) da HESABA bağlı tutulur: anahtarın sonuna
-// giriş yapan üyenin id'si eklenir. Aksi halde bir hesapta aktif olan abonelik,
-// RevenueCat'in gerçek doğrulaması henüz yapılandırılmamışken/tamamlanmadan önce
-// aynı cihazdaki farklı bir hesaba da "reklamsız" olarak görünebiliyordu.
+// NOT: Apple App Store İnceleme Kuralı 5.1.1(v) uyarınca, hesaba özgü olmayan bir
+// uygulama içi satın alma ürünü (bu abonelik yalnızca reklamları kaldırıyor, hesaba
+// özel bir içerik/özellik değil) satın alınmadan önce kullanıcı kaydı ZORUNLU
+// KILINAMAZ. Önceden burada `purchaseMonthly` giriş yapılmamışsa satın almayı
+// başlatmadan `requiresLogin: true` döndürüyordu — Apple bunu 20 Eylül 2026'da
+// reddetti ("kullanıcıların kişisel bilgilerini kaydetmelerini gerektirdiğini
+// fark ettik"). Artık misafir (giriş yapmamış) kullanıcılar da doğrudan satın
+// alabiliyor; RevenueCat bu durumda kendi anonim cihaz kimliğini kullanıyor ve
+// kullanıcı daha sonra hesap oluşturup giriş yaparsa (Purchases.logIn), bu satın
+// alma otomatik olarak o hesaba aktarılıyor (RevenueCat'in "alias" mekanizması).
+//
+// Bu nedenle "reklamsız" durumunun cihazdaki hızlı-açılış önbelleği (RevenueCat'in
+// ağ isteği sonuçlanana kadar gösterilecek geçici değer) iki ayrı anahtarda
+// tutulur: giriş yapılmışsa hesaba özel anahtarda (aynı cihazdaki farklı bir
+// hesaba "reklamsız" durumun sızmaması için), giriş yapılmamışsa cihaza özel
+// tek bir anahtarda.
 const SUBSCRIPTION_AD_FREE_KEY_PREFIX = 'motorkarne_subscription_ad_free_until_';
+const DEVICE_SUBSCRIPTION_AD_FREE_KEY = 'motorkarne_subscription_ad_free_until_device';
 
 interface PurchasesContextType {
   monthlyOffering: PurchasesOffering | null;
@@ -21,8 +31,10 @@ interface PurchasesContextType {
   // yapılmış bir hesap olmasa bile geçerli. AdsContext bunu okuyarak reklamları gizler.
   subscriptionAdFreeUntil: number | null;
   // Aylık aboneliği satın alma akışını başlatır (mağaza ödeme ekranını açar).
-  // Kullanıcı uygulamaya giriş yapmamışsa satın alma BAŞLATILMAZ —
-  // requiresLogin: true döner, UI bunu görüp giriş ekranına yönlendirmeli.
+  // Giriş yapılmamış (misafir) kullanıcılar da satın alabilir — Apple Guideline
+  // 5.1.1(v) hesaba özgü olmayan satın almalar için kayıt zorunluluğuna izin
+  // vermiyor. `requiresLogin` alanı geriye dönük uyumluluk için hâlâ mevcut ama
+  // artık hiçbir zaman true dönmüyor.
   purchaseMonthly: () => Promise<{ success: boolean; error?: string; requiresLogin?: boolean }>;
   // Kullanıcı daha önce satın aldıysa (örn. telefon değiştirdiyse) aboneliği geri yükler.
   restorePurchases: () => Promise<{ success: boolean; error?: string }>;
@@ -51,17 +63,16 @@ export const PurchasesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isConfigured, setIsConfigured] = useState(false);
   const [subscriptionAdFreeUntil, setSubscriptionAdFreeUntil] = useState<number | null>(null);
 
-  // Uygulama açılışında (veya hesap değiştiğinde), O HESABA ait önceden kaydedilmiş
-  // abonelik bitiş zamanını hemen yükle — RevenueCat ağ isteği tamamlanana kadar
-  // reklamlar yanlışlıkla görünmesin. Giriş yapılmamışsa (misafir) ya da hesap
-  // değiştiyse, önceki hesabın abonelik bilgisi görünmesin diye sıfırlanır.
+  // Uygulama açılışında (veya hesap değiştiğinde), önceden kaydedilmiş abonelik
+  // bitiş zamanını hemen yükle — RevenueCat ağ isteği tamamlanana kadar reklamlar
+  // yanlışlıkla görünmesin. Giriş yapılmışsa HESABA özel anahtar, yapılmamışsa
+  // (misafir) CİHAZA özel anahtar okunur — bkz. yukarıdaki not.
   useEffect(() => {
-    if (!currentUser) {
-      setSubscriptionAdFreeUntil(null);
-      return;
-    }
     let cancelled = false;
-    AsyncStorage.getItem(SUBSCRIPTION_AD_FREE_KEY_PREFIX + currentUser.id).then((raw) => {
+    const key = currentUser
+      ? SUBSCRIPTION_AD_FREE_KEY_PREFIX + currentUser.id
+      : DEVICE_SUBSCRIPTION_AD_FREE_KEY;
+    AsyncStorage.getItem(key).then((raw) => {
       if (cancelled) return;
       if (!raw) {
         setSubscriptionAdFreeUntil(null);
@@ -134,15 +145,15 @@ export const PurchasesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const resolvedUntil = hasEntitlement ? (expiresAt ?? Number.MAX_SAFE_INTEGER) : null;
 
     setSubscriptionAdFreeUntil(resolvedUntil);
-    // Yalnızca giriş yapılmış bir hesap varsa diske yazılır — abonelik satın alma
-    // zaten girişi zorunlu kıldığı için (bkz. purchaseMonthly), bu değer her zaman
-    // ilgili hesaba bağlı kalır ve başka bir hesaba sızmaz.
-    if (currentUser) {
-      if (resolvedUntil !== null) {
-        AsyncStorage.setItem(SUBSCRIPTION_AD_FREE_KEY_PREFIX + currentUser.id, String(resolvedUntil)).catch(() => {});
-      } else {
-        AsyncStorage.removeItem(SUBSCRIPTION_AD_FREE_KEY_PREFIX + currentUser.id).catch(() => {});
-      }
+    // Giriş yapılmışsa HESABA özel anahtara, yapılmamışsa (misafir satın alma —
+    // bkz. yukarıdaki not) CİHAZA özel anahtara yazılır. Böylece aynı cihazdaki
+    // farklı bir hesaba "reklamsız" durum sızmaz, ama misafir satın alımı da
+    // sonraki açılışlarda anında (ağ beklemeden) doğru gösterilir.
+    const key = currentUser ? SUBSCRIPTION_AD_FREE_KEY_PREFIX + currentUser.id : DEVICE_SUBSCRIPTION_AD_FREE_KEY;
+    if (resolvedUntil !== null) {
+      AsyncStorage.setItem(key, String(resolvedUntil)).catch(() => {});
+    } else {
+      AsyncStorage.removeItem(key).catch(() => {});
     }
 
     // Giriş yapılmış bir hesap varsa profil/hesap ekranlarında gösterim için
@@ -151,15 +162,12 @@ export const PurchasesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const purchaseMonthly = async (): Promise<{ success: boolean; error?: string; requiresLogin?: boolean }> => {
-    // Kullanıcı uygulamaya giriş yapmadan (hesap oluşturmadan) satın alma akışı
-    // başlatılmasın — UI bunu görüp giriş ekranına yönlendirmeli.
-    if (!currentUser) {
-      return {
-        success: false,
-        requiresLogin: true,
-        error: 'Abonelik satın almak için önce giriş yapmalısınız.',
-      };
-    }
+    // ÖNEMLİ (Apple Guideline 5.1.1(v)): Bu satın alma hesaba özgü bir içerik/özellik
+    // değil (yalnızca reklamları kaldırıyor), bu yüzden önceden burada olduğu gibi
+    // giriş yapılmadan satın almanın engellenmesi Apple tarafından reddedildi.
+    // Misafir kullanıcılar da doğrudan satın alabilir; RevenueCat kendi anonim
+    // cihaz kimliğini kullanır ve kullanıcı sonradan hesap oluşturursa satın alma
+    // otomatik olarak o hesaba aktarılır (bkz. dosya başındaki not).
     if (!monthlyOffering?.availablePackages?.length) {
       return { success: false, error: 'Abonelik şu an satın alınamıyor, lütfen daha sonra tekrar deneyin.' };
     }
