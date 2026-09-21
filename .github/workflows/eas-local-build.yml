@@ -1,10 +1,10 @@
 ﻿name: EAS Local Android Build
-
+ 
 # Bu iş akışı, EAS build kotanızı HİÇ kullanmadan GitHub'ın ücretsiz Linux
 # sunucusunda "eas build --local" komutunu çalıştırır ve üretilen dosyayı
 # indirilebilir bir "artifact" olarak sunar. Elle tetiklemek için:
 # GitHub reposu -> Actions sekmesi -> "EAS Local Android Build" -> "Run workflow".
-
+ 
 on:
   workflow_dispatch:
     inputs:
@@ -12,34 +12,44 @@ on:
         description: "eas.json içindeki build profili (development / preview / production)"
         required: false
         default: "preview"
-
+ 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Repoyu indir
         uses: actions/checkout@v4
-
+ 
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
+ 
       - name: Java (JDK 17) kur
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-
+ 
       - name: Android SDK kur
         uses: android-actions/setup-android@v3
-
+        with:
+          # ÖNEMLİ: android-actions/setup-android'in varsayılan "packages" değeri
+          # "tools platform-tools" — Google, eski/kullanımdan kaldırılmış "tools"
+          # paketini deponuzdan tamamen kaldırdı (yaklaşık 15 Eylül 2026'dan
+          # itibaren), bu yüzden varsayılan kurulum artık "Failed to find package
+          # 'tools'" hatasıyla exit code 1 veriyor. Yalnızca hâlâ var olan ve
+          # gerçekten ihtiyaç duyduğumuz platform-tools'u kuruyoruz — build-tools
+          # ve platform paketleri Gradle tarafından ihtiyaç oldukça otomatik
+          # indiriliyor.
+          packages: "platform-tools"
+ 
       - name: Bağımlılıkları yükle
         run: npm install
-
+ 
       - name: EAS CLI yükle
         run: npm install -g eas-cli
-
+ 
       - name: Çıktı dosya adını belirle
         id: outfile
         run: |
@@ -48,7 +58,7 @@ jobs:
           else
             echo "path=./motorkarne-build.apk" >> "$GITHUB_OUTPUT"
           fi
-
+ 
       - name: Yerel Android build al
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -58,7 +68,7 @@ jobs:
             --profile "${{ github.event.inputs.profile }}" \
             --non-interactive \
             --output "${{ steps.outfile.outputs.path }}"
-
+ 
       - name: Build çıktısını artifact olarak yükle
         uses: actions/upload-artifact@v4
         with:
