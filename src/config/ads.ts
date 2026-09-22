@@ -17,7 +17,7 @@ const isProduction = !__DEV__;
 // AdMob Uygulama Kimliği (App ID) — app.json'daki plugin yapılandırmasında da kullanılıyor.
 export const ADMOB_APP_ID = Platform.select({
   android: 'ca-app-pub-9017194698663463~4519512665', // Gerçek MotorKarne Android App ID
-  ios: 'ca-app-pub-3940256099942544~1458002511', // Google test App ID (iOS) — henüz gerçek iOS App ID yok
+  ios: 'ca-app-pub-9017194698663463~5629677686', // Gerçek MotorKarne iOS App ID (app.json'daki ile aynı)
   default: '',
 });
 
@@ -38,8 +38,8 @@ const TEST_IDS = {
 // Gerçek AdMob hesabından alınan reklam birimi kimliklerini buraya yapıştır.
 // REPLACE_ME olarak kaldığı sürece, uygulama otomatik olarak test kimliklerini kullanır.
 const REAL_IDS = {
-  banner: Platform.select({ android: 'ca-app-pub-9017194698663463/7738120259', ios: 'REPLACE_ME_IOS_BANNER', default: '' })!,
-  interstitial: Platform.select({ android: 'ca-app-pub-9017194698663463/9496507173', ios: 'REPLACE_ME_IOS_INTERSTITIAL', default: '' })!,
+  banner: Platform.select({ android: 'ca-app-pub-9017194698663463/7738120259', ios: 'ca-app-pub-9017194698663463/1638461785', default: '' })!,
+  interstitial: Platform.select({ android: 'ca-app-pub-9017194698663463/9496507173', ios: 'ca-app-pub-9017194698663463/7218091522', default: '' })!,
 };
 
 function resolve(key: keyof typeof TEST_IDS): string {
