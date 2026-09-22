@@ -83,9 +83,20 @@ export const AdsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 2026 incelemesinde native ATT izin penceresi hiç görünmüyordu (Guideline 2.1).
       // Apple'ın kuralı gereği bu istek, izlemek için kullanılabilecek HERHANGİ bir veri
       // toplanmadan (yani reklam SDK'sı başlatılmadan/AdsConsent akışından) ÖNCE gösterilmeli.
+      //
+      // ÖNEMLİ: İlk denemede (bkz. "bildirim çıkmadı" geri bildirimi) çağrı buradaydı ama
+      // pencere hiç görünmedi — bunun bilinen nedeni, isteğin uygulama penceresi native
+      // tarafta tam olarak "key/visible" olmadan (yani JS bundle'ın ilk render geçişinde,
+      // AdsProvider mount olur olmaz) yapılmasıdır; iOS bu durumda isteği sessizce yok
+      // sayabiliyor. Kısa bir gecikme ekleyerek isteğin pencere tamamen hazır olduktan
+      // sonra yapılmasını sağlıyoruz.
       if (Platform.OS === 'ios') {
         try {
-          await TrackingTransparency.requestTrackingPermissionsAsync();
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          const { status } = await TrackingTransparency.getTrackingPermissionsAsync();
+          if (status === TrackingTransparency.PermissionStatus.UNDETERMINED) {
+            await TrackingTransparency.requestTrackingPermissionsAsync();
+          }
         } catch (e) {
           // Kullanıcı reddetti ya da bir hata oldu — kişiselleştirilmemiş reklamlarla devam ediyoruz.
         }
