@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import mobileAds, { AdsConsent, InterstitialAd, AdEventType } from 'react-native-google-mobile-ads';
+import * as TrackingTransparency from 'expo-tracking-transparency';
 import { AD_UNIT_IDS, AD_CONFIG } from '../config/ads';
 import { usePurchases } from './PurchasesContext';
 import { useMembers } from './MembersContext';
@@ -75,6 +77,20 @@ export const AdsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // ---- Apple App Tracking Transparency (yalnızca iOS) ----
+      // app.json'da expo-tracking-transparency plugin'i (ve NSUserTrackingUsageDescription)
+      // zaten tanımlıydı, ama bu JS çağrısı hiç yapılmıyordu — bu yüzden Apple'ın 22 Eylül
+      // 2026 incelemesinde native ATT izin penceresi hiç görünmüyordu (Guideline 2.1).
+      // Apple'ın kuralı gereği bu istek, izlemek için kullanılabilecek HERHANGİ bir veri
+      // toplanmadan (yani reklam SDK'sı başlatılmadan/AdsConsent akışından) ÖNCE gösterilmeli.
+      if (Platform.OS === 'ios') {
+        try {
+          await TrackingTransparency.requestTrackingPermissionsAsync();
+        } catch (e) {
+          // Kullanıcı reddetti ya da bir hata oldu — kişiselleştirilmemiş reklamlarla devam ediyoruz.
+        }
+      }
+
       try {
         await AdsConsent.gatherConsent();
       } catch (e) {
